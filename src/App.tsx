@@ -299,6 +299,9 @@ export function App() {
       mediaSourceNodeRef.current = source;
       connectedElementRef.current = el;
       setAnalyser(node);
+      if (ctx.state === 'suspended') {
+        ctx.resume().catch(() => {});
+      }
     } catch {
       // Fallback gracefully if Web Audio is unavailable
     }
@@ -628,6 +631,17 @@ export function App() {
       }
 
       if (cancelled) return;
+
+      // Ensure CORS mode is configured BEFORE setting el.src so Web Audio
+      // MediaElementAudioSourceNode receives CORS-clean PCM samples under webSecurity: true
+      const useAnonymousCors = !currentTrack.isRemote && !currentTrack.isObjectUrl;
+      if (useAnonymousCors) {
+        if (el.crossOrigin !== 'anonymous') {
+          el.crossOrigin = 'anonymous';
+        }
+      } else if (el.crossOrigin !== null) {
+        el.removeAttribute('crossorigin');
+      }
 
       if (!currentTrack.isRemote) {
         ensureAudioAnalyser();
@@ -2197,6 +2211,7 @@ export function App() {
         <video
           key={currentTrack?.isRemote ? 'remote-media' : 'local-media'}
           ref={mediaRef}
+          crossOrigin={!currentTrack?.isRemote && !currentTrack?.isObjectUrl ? 'anonymous' : undefined}
           className={`video-element ${aspectClass} ${!isVideoMode || miniMode ? 'hidden-audio' : ''}`}
           style={videoStyle}
           playsInline
@@ -2211,7 +2226,12 @@ export function App() {
               handleToggleFullscreen();
             }
           }}
-          onPlay={() => setIsPlaying(true)}
+          onPlay={() => {
+            setIsPlaying(true);
+            if (!isRemoteTrackRef.current && audioCtxRef.current?.state === 'suspended') {
+              audioCtxRef.current.resume().catch(() => {});
+            }
+          }}
           onPause={() => setIsPlaying(false)}
           onEnded={handleEnded}
           onLoadedMetadata={(e) => {

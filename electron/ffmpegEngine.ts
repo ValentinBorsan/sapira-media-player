@@ -371,9 +371,20 @@ export function startTranscodeServer(): Promise<number> {
   return new Promise((resolve) => {
     transcodeServer = http.createServer((req, res) => {
       try {
+        const corsHeaders = {
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
+          'Access-Control-Allow-Headers': 'Range, Content-Type',
+        };
+        if (req.method === 'OPTIONS') {
+          res.writeHead(204, corsHeaders);
+          res.end();
+          return;
+        }
+
         const reqUrl = new URL(req.url || '/', `http://127.0.0.1:${serverPort}`);
         if (reqUrl.pathname !== '/stream' || reqUrl.searchParams.get('token') !== sessionToken) {
-          res.writeHead(403);
+          res.writeHead(403, corsHeaders);
           res.end('Forbidden');
           return;
         }
@@ -388,16 +399,16 @@ export function startTranscodeServer(): Promise<number> {
         const dual = resolvedDualStreams.get(filePath);
         const remote = Boolean(dual) || isResolvedStream(filePath);
         if (!ffmpeg || !filePath || (!remote && !fs.existsSync(filePath))) {
-          res.writeHead(404);
+          res.writeHead(404, corsHeaders);
           res.end('Not found');
           return;
         }
 
         if (req.method === 'HEAD') {
           res.writeHead(200, {
+            ...corsHeaders,
             'Content-Type': kind === 'audio' && !dual ? 'audio/mpeg' : 'video/mp4',
             'Cache-Control': 'no-store',
-            'Access-Control-Allow-Origin': '*',
           });
           res.end();
           return;

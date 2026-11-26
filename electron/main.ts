@@ -106,6 +106,7 @@ protocol.registerSchemesAsPrivileged([
       standard: true,
       secure: true,
       supportFetchAPI: true,
+      corsEnabled: true,
       stream: true,
       bypassCSP: true,
     },
@@ -190,23 +191,37 @@ function collectMediaFromPaths(inputPaths: string[], maxDepth = 3): ScannedMedia
   return results;
 }
 
+const MEDIA_CORS_HEADERS: Record<string, string> = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
+  'Access-Control-Allow-Headers': 'Range, Content-Type',
+  'Access-Control-Expose-Headers': 'Content-Length, Content-Range, Accept-Ranges',
+};
+
 function registerMediaProtocol() {
   protocol.handle('sapira-media', async (request) => {
     try {
+      if (request.method === 'OPTIONS') {
+        return new Response(null, {
+          status: 204,
+          headers: MEDIA_CORS_HEADERS,
+        });
+      }
+
       const url = new URL(request.url);
       const rawPath = url.searchParams.get('path');
       if (!rawPath) {
-        return new Response('Missing path parameter', { status: 400 });
+        return new Response('Missing path parameter', { status: 400, headers: MEDIA_CORS_HEADERS });
       }
 
       const filePath = path.resolve(rawPath);
       const kind = getMediaKind(filePath);
       if (!kind) {
-        return new Response('Unsupported media type', { status: 403 });
+        return new Response('Unsupported media type', { status: 403, headers: MEDIA_CORS_HEADERS });
       }
 
       if (!fs.existsSync(filePath)) {
-        return new Response('File not found', { status: 404 });
+        return new Response('File not found', { status: 404, headers: MEDIA_CORS_HEADERS });
       }
 
       const stat = fs.statSync(filePath);
@@ -219,10 +234,10 @@ function registerMediaProtocol() {
         return new Response(null, {
           status: 200,
           headers: {
+            ...MEDIA_CORS_HEADERS,
             'Content-Type': contentType,
             'Content-Length': String(fileSize),
             'Accept-Ranges': 'bytes',
-            'Access-Control-Allow-Origin': '*',
           },
         });
       }
@@ -232,8 +247,8 @@ function registerMediaProtocol() {
           new Response('Requested Range Not Satisfiable', {
             status: 416,
             headers: {
+              ...MEDIA_CORS_HEADERS,
               'Content-Range': `bytes */${fileSize}`,
-              'Access-Control-Allow-Origin': '*',
             },
           });
 
@@ -278,11 +293,11 @@ function registerMediaProtocol() {
         return new Response(webStream, {
           status: 206,
           headers: {
+            ...MEDIA_CORS_HEADERS,
             'Content-Type': contentType,
             'Content-Length': String(chunkSize),
             'Content-Range': `bytes ${start}-${end}/${fileSize}`,
             'Accept-Ranges': 'bytes',
-            'Access-Control-Allow-Origin': '*',
           },
         });
       }
@@ -293,10 +308,10 @@ function registerMediaProtocol() {
       return new Response(webStream, {
         status: 200,
         headers: {
+          ...MEDIA_CORS_HEADERS,
           'Content-Type': contentType,
           'Content-Length': String(fileSize),
           'Accept-Ranges': 'bytes',
-          'Access-Control-Allow-Origin': '*',
         },
       });
     } catch (error) {
