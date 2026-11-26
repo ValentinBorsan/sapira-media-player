@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import {
   FolderOpen,
   Globe,
@@ -38,7 +39,7 @@ interface TitleBarProps {
   onToggleShortcuts: () => void;
 }
 
-export function TitleBar({
+export const TitleBar = memo(function TitleBar({
   currentTrack,
   displayTitle,
   isPlaying,
@@ -218,4 +219,4 @@ export function TitleBar({
       </div>
     </header>
   );
-}
+});

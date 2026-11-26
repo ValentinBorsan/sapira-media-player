@@ -99,6 +99,12 @@ interface ScannedMediaFile {
   size: number;
 }
 
+const STREAM_HIGH_WATER_MARK = 512 * 1024; // 512 KB chunks for fast 4K/FLAC seeking & buffering
+
+app.commandLine.appendSwitch('ignore-gpu-blocklist');
+app.commandLine.appendSwitch('enable-gpu-rasterization');
+app.commandLine.appendSwitch('enable-zero-copy');
+
 protocol.registerSchemesAsPrivileged([
   {
     scheme: 'sapira-media',
@@ -287,7 +293,11 @@ function registerMediaProtocol() {
         }
 
         const chunkSize = end - start + 1;
-        const nodeStream = fs.createReadStream(filePath, { start, end });
+        const nodeStream = fs.createReadStream(filePath, {
+          start,
+          end,
+          highWaterMark: STREAM_HIGH_WATER_MARK,
+        });
         const webStream = Readable.toWeb(nodeStream) as ReadableStream;
 
         return new Response(webStream, {
@@ -302,7 +312,9 @@ function registerMediaProtocol() {
         });
       }
 
-      const nodeStream = fs.createReadStream(filePath);
+      const nodeStream = fs.createReadStream(filePath, {
+        highWaterMark: STREAM_HIGH_WATER_MARK,
+      });
       const webStream = Readable.toWeb(nodeStream) as ReadableStream;
 
       return new Response(webStream, {

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { memo, useEffect, useRef } from 'react';
 import type { AudioMetadata, MediaTrack } from '../types/media';
 import { formatFileSize } from '../utils/format';
 import { SAPIRA_THEMES, STRINGS, type SapiraLanguage, type SapiraTheme } from '../utils/i18n';
@@ -16,7 +16,7 @@ interface AudioStageProps {
   onTogglePlay: () => void;
 }
 
-export function AudioStage({
+export const AudioStage = memo(function AudioStage({
   track,
   metadata,
   isPlaying,
@@ -37,33 +37,88 @@ export function AudioStage({
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const dpr = window.devicePixelRatio || 1;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
     const size = 460;
     canvas.width = size * dpr;
     canvas.height = size * dpr;
-    ctx.scale(dpr, dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
     const bars = 120;
     const cx = size / 2;
     const cy = size / 2;
-    const baseRadius = 122; // aurora starts cleanly beyond the halo ring
-    const ringRadius = 108; // generous equal breathing space around the 168px logo
+    const baseRadius = 122;
+    const ringRadius = 108;
     const data = analyser ? new Uint8Array(analyser.frequencyBinCount) : null;
     const smooth = new Float32Array(bars);
+    const contourX = new Float32Array(bars);
+    const contourY = new Float32Array(bars);
+    const contourAmp = new Float32Array(bars);
+    const cosTable = new Float32Array(bars);
+    const sinTable = new Float32Array(bars);
+    const mirrorTable = new Float32Array(bars);
+    const binIdxTable = new Uint16Array(bars);
+
+    const binLen = data ? data.length : 128;
+    for (let i = 0; i < bars; i++) {
+      const ratio = i / bars;
+      const angle = ratio * Math.PI * 2 - Math.PI / 2;
+      const mirror = 1 - Math.abs(ratio * 2 - 1);
+      cosTable[i] = Math.cos(angle);
+      sinTable[i] = Math.sin(angle);
+      mirrorTable[i] = mirror;
+      binIdxTable[i] = Math.floor(Math.pow(mirror, 1.3) * binLen * 0.5);
+    }
+
+    const themeSpec = SAPIRA_THEMES.find((th) => th.id === theme) ?? SAPIRA_THEMES[0];
+    const [c0, c1, c2] = themeSpec.colors;
+
+    const ringGrad = ctx.createLinearGradient(cx - ringRadius, cy, cx + ringRadius, cy);
+    ringGrad.addColorStop(0, c0);
+    ringGrad.addColorStop(0.5, c1);
+    ringGrad.addColorStop(1, c2);
+
+    const conic = ctx.createConicGradient(-Math.PI / 2, cx, cy);
+    conic.addColorStop(0, c0);
+    conic.addColorStop(0.25, c1);
+    conic.addColorStop(0.5, c2);
+    conic.addColorStop(0.75, c1);
+    conic.addColorStop(1, c0);
 
     let raf = 0;
+    let lastFrameTime = 0;
     let t = 0;
     let bass = 0;
     let prevBass = 0;
-    let sweepP = 1.4; // 0..1 = travelling, >1 = resting
+    let sweepP = 1.4;
     let sweepPower = 0;
     let shock = 0;
 
-    const draw = () => {
+    const tracePath = () => {
+      const lastIdx = bars - 1;
+      ctx.moveTo((contourX[lastIdx] + contourX[0]) * 0.5, (contourY[lastIdx] + contourY[0]) * 0.5);
+      for (let i = 0; i < bars; i++) {
+        const next = i + 1 === bars ? 0 : i + 1;
+        ctx.quadraticCurveTo(
+          contourX[i],
+          contourY[i],
+          (contourX[i] + contourX[next]) * 0.5,
+          (contourY[i] + contourY[next]) * 0.5
+        );
+      }
+      ctx.closePath();
+    };
+
+    const draw = (now: number) => {
+      // Cap visualizer at ~60fps even on 120Hz ProMotion displays for crisp UI headroom
+      if (now - lastFrameTime < 15) {
+        raf = requestAnimationFrame(draw);
+        return;
+      }
+      lastFrameTime = now;
+
       ctx.clearRect(0, 0, size, size);
       t += 0.02;
 
-      // Bass energy (low bins) drives the whole composition
       let rawBass = 0;
       if (analyser && data && isPlaying) {
         analyser.getByteFrequencyData(data);
@@ -73,119 +128,81 @@ export function AudioStage({
       } else if (isPlaying) {
         rawBass = 0.25 + 0.12 * Math.sin(t * 2.4);
       }
-      bass += (rawBass - bass) * 0.15;
+      bass += (rawBass - bass) * 0.16;
 
-      // Prism sweep synced to the music: a strong beat launches a beam,
-      // louder passages make it faster and brighter.
       const beat = isPlaying && bass > 0.3 && bass - prevBass > 0.025;
       if (beat && sweepP >= 1) {
         sweepP = 0;
         sweepPower = Math.min(1, 0.55 + bass);
       }
       if (beat && shock < 0.5) shock = 1;
-      shock *= 0.93;
+      shock *= 0.92;
       prevBass = bass;
-      if (sweepP < 1.4) sweepP += isPlaying ? 0.012 + bass * 0.05 : 0.02;
+      if (sweepP < 1.4) sweepP += isPlaying ? 0.014 + bass * 0.05 : 0.025;
       const beamWindow = sweepP < 1 ? Math.sin(Math.PI * Math.min(1, Math.max(0, sweepP))) : 0;
 
+      // Pure GPU-composited transforms & opacity (no per-frame SVG drop-shadow filter invalidation!)
       if (coreRef.current) {
         coreRef.current.style.setProperty('--sweep-p', Math.min(1, sweepP).toFixed(3));
         coreRef.current.style.setProperty('--sweep-o', Math.min(1, beamWindow * sweepPower).toFixed(3));
-      }
-      // Logo breathes with the beat; glow follows
-      if (coreRef.current) {
         const s = isPlaying ? 1 + bass * 0.085 : 1;
-        const g = isPlaying ? 16 + bass * 26 : 10;
-        coreRef.current.style.transform = `scale(${s.toFixed(4)})`;
-        coreRef.current.style.filter = `drop-shadow(0 0 ${g.toFixed(1)}px rgba(125, 211, 252, ${(0.28 + bass * 0.36).toFixed(2)}))`;
+        coreRef.current.style.transform = `scale3d(${s.toFixed(4)}, ${s.toFixed(4)}, 1)`;
       }
       if (glowRef.current) {
-        glowRef.current.style.transform = `scale(${(0.92 + (isPlaying ? bass * 0.16 : 0)).toFixed(3)})`;
-        glowRef.current.style.opacity = (isPlaying ? 0.52 + bass * 0.34 : 0.36).toFixed(3);
+        const gs = 0.92 + (isPlaying ? bass * 0.18 : 0);
+        glowRef.current.style.transform = `scale3d(${gs.toFixed(3)}, ${gs.toFixed(3)}, 1)`;
+        glowRef.current.style.opacity = (isPlaying ? 0.52 + bass * 0.38 : 0.36).toFixed(3);
       }
 
       if (!showVisualizer) {
-        raf = requestAnimationFrame(draw);
+        if (isPlaying || bass > 0.005) {
+          raf = requestAnimationFrame(draw);
+        }
         return;
       }
 
-      const themeSpec = SAPIRA_THEMES.find((th) => th.id === theme) ?? SAPIRA_THEMES[0];
-      const [c0, c1, c2] = themeSpec.colors;
-
-      // Concentric halo ring: equal gap around the centered brand logo
-      const ringGrad = ctx.createLinearGradient(cx - ringRadius, cy, cx + ringRadius, cy);
-      ringGrad.addColorStop(0, c0);
-      ringGrad.addColorStop(0.5, c1);
-      ringGrad.addColorStop(1, c2);
+      // Concentric halo ring (layered alpha glow instead of expensive CPU shadowBlur)
       ctx.save();
-      ctx.globalAlpha = isPlaying ? 0.42 + bass * 0.45 : 0.26;
-      ctx.shadowColor = 'rgba(125, 211, 252, 0.85)';
-      ctx.shadowBlur = isPlaying ? 6 + bass * 12 : 4;
       ctx.strokeStyle = ringGrad;
-      ctx.lineWidth = 1.5;
       ctx.beginPath();
       ctx.arc(cx, cy, ringRadius, 0, Math.PI * 2);
+      ctx.globalAlpha = isPlaying ? 0.14 + bass * 0.22 : 0.08;
+      ctx.lineWidth = 5;
+      ctx.stroke();
+      ctx.globalAlpha = isPlaying ? 0.46 + bass * 0.44 : 0.26;
+      ctx.lineWidth = 1.5;
       ctx.stroke();
       ctx.restore();
 
-      // Aurora corona (balanced amplitude): smooth luminous contour + prism particles
+      let maxSmooth = 0;
       for (let i = 0; i < bars; i++) {
-        const ratio = i / bars;
-        const mirror = 1 - Math.abs(ratio * 2 - 1);
         let target = 0.04;
         if (analyser && data && isPlaying) {
-          const idx = Math.floor(Math.pow(mirror, 1.3) * data.length * 0.5);
-          target = (data[idx] || 0) / 255;
+          target = (data[binIdxTable[i]] || 0) / 255;
         } else if (isPlaying) {
-          target = 0.13 + 0.09 * Math.sin(t * 2 + mirror * 7);
+          target = 0.13 + 0.09 * Math.sin(t * 2 + mirrorTable[i] * 7);
         }
-        smooth[i] += (target - smooth[i]) * 0.28;
+        const nextVal = smooth[i] + (target - smooth[i]) * 0.28;
+        smooth[i] = nextVal;
+        if (nextVal > maxSmooth) maxSmooth = nextVal;
       }
 
-      const contour: Array<{ x: number; y: number; amp: number; mirror: number; angle: number }> = [];
       for (let i = 0; i < bars; i++) {
-        const prev = smooth[(i - 1 + bars) % bars];
-        const next = smooth[(i + 1) % bars];
-        const amp = Math.min(1.0, Math.pow((prev + 2 * smooth[i] + next) / 4, 0.88) * 1.16);
-        const ratio = i / bars;
-        const angle = ratio * Math.PI * 2 - Math.PI / 2;
+        const prev = smooth[i === 0 ? bars - 1 : i - 1];
+        const next = smooth[i + 1 === bars ? 0 : i + 1];
+        const amp = Math.min(1.0, Math.pow((prev + 2 * smooth[i] + next) * 0.25, 0.88) * 1.16);
         const r = baseRadius + 2 + amp * 46;
-        contour.push({
-          x: cx + Math.cos(angle) * r,
-          y: cy + Math.sin(angle) * r,
-          amp,
-          mirror: 1 - Math.abs(ratio * 2 - 1),
-          angle,
-        });
+        contourAmp[i] = amp;
+        contourX[i] = cx + cosTable[i] * r;
+        contourY[i] = cy + sinTable[i] * r;
       }
 
-      const tracePath = () => {
-        const last = contour[contour.length - 1];
-        const first = contour[0];
-        ctx.moveTo((last.x + first.x) / 2, (last.y + first.y) / 2);
-        for (let i = 0; i < contour.length; i++) {
-          const a = contour[i];
-          const b = contour[(i + 1) % contour.length];
-          ctx.quadraticCurveTo(a.x, a.y, (a.x + b.x) / 2, (a.y + b.y) / 2);
-        }
-        ctx.closePath();
-      };
-
-      const conic = ctx.createConicGradient(-Math.PI / 2, cx, cy);
-      conic.addColorStop(0, c0);
-      conic.addColorStop(0.25, c1);
-      conic.addColorStop(0.5, c2);
-      conic.addColorStop(0.75, c1);
-      conic.addColorStop(1, c0);
-
-      // Beat shockwave: restrained ripple expanding outward on strong hits
+      // Beat shockwave
       if (shock > 0.03) {
         ctx.save();
-        ctx.globalAlpha = shock * 0.44;
         ctx.strokeStyle = conic;
-        ctx.shadowColor = 'rgba(125, 211, 252, 0.85)';
-        ctx.shadowBlur = 10;
-        ctx.lineWidth = 1.1 + shock * 1.4;
+        ctx.globalAlpha = shock * 0.42;
+        ctx.lineWidth = 1.2 + shock * 1.6;
         ctx.beginPath();
         ctx.arc(cx, cy, ringRadius + (1 - shock) * 82, 0, Math.PI * 2);
         ctx.stroke();
@@ -202,40 +219,56 @@ export function AudioStage({
       ctx.fill('evenodd');
       ctx.restore();
 
-      // Glowing contour line
+      // Glowing contour line (dual-pass glow stroke, zero shadowBlur overhead)
       ctx.save();
-      ctx.globalAlpha = isPlaying ? 0.56 + bass * 0.38 : 0.22;
-      ctx.shadowColor = 'rgba(147, 197, 253, 0.9)';
-      ctx.shadowBlur = isPlaying ? 8 + bass * 20 : 4;
       ctx.strokeStyle = conic;
-      ctx.lineWidth = 1.85;
       ctx.lineJoin = 'round';
       ctx.beginPath();
       tracePath();
+      ctx.globalAlpha = isPlaying ? 0.18 + bass * 0.24 : 0.08;
+      ctx.lineWidth = 6.5;
+      ctx.stroke();
+      ctx.globalAlpha = isPlaying ? 0.62 + bass * 0.36 : 0.24;
+      ctx.lineWidth = 1.85;
       ctx.stroke();
       ctx.restore();
 
-      // Prism particles drifting gently near the contour
+      // Prism particles drifting gently near the contour (batched paths, zero shadowBlur)
       ctx.save();
       ctx.globalCompositeOperation = 'lighter';
-      for (let i = 0; i < contour.length; i += 2) {
-        const c = contour[i];
-        const drift = c.amp * 15 + 2.5 * Math.sin(t * 1.6 + i * 0.7);
-        const px = c.x + Math.cos(c.angle) * drift;
-        const py = c.y + Math.sin(c.angle) * drift;
-        const radius = 0.85 + c.amp * 2.3;
-        ctx.shadowColor = c2;
-        ctx.shadowBlur = 5 + c.amp * 8;
-        ctx.fillStyle = c1;
-        ctx.globalAlpha = isPlaying ? 0.34 + c.amp * 0.6 : 0.18;
-        ctx.beginPath();
-        ctx.arc(px, py, radius, 0, Math.PI * 2);
-        ctx.fill();
+      ctx.fillStyle = c2;
+      ctx.globalAlpha = isPlaying ? 0.18 + bass * 0.22 : 0.08;
+      ctx.beginPath();
+      for (let i = 0; i < bars; i += 2) {
+        const amp = contourAmp[i];
+        const drift = amp * 15 + 2.5 * Math.sin(t * 1.6 + i * 0.7);
+        const px = contourX[i] + cosTable[i] * drift;
+        const py = contourY[i] + sinTable[i] * drift;
+        const outerR = (0.85 + amp * 2.3) * 2.1;
+        ctx.moveTo(px + outerR, py);
+        ctx.arc(px, py, outerR, 0, Math.PI * 2);
       }
+      ctx.fill();
+
+      ctx.fillStyle = c1;
+      ctx.globalAlpha = isPlaying ? 0.52 + bass * 0.4 : 0.2;
+      ctx.beginPath();
+      for (let i = 0; i < bars; i += 2) {
+        const amp = contourAmp[i];
+        const drift = amp * 15 + 2.5 * Math.sin(t * 1.6 + i * 0.7);
+        const px = contourX[i] + cosTable[i] * drift;
+        const py = contourY[i] + sinTable[i] * drift;
+        const innerR = 0.85 + amp * 2.3;
+        ctx.moveTo(px + innerR, py);
+        ctx.arc(px, py, innerR, 0, Math.PI * 2);
+      }
+      ctx.fill();
       ctx.restore();
 
-
-      raf = requestAnimationFrame(draw);
+      // Sleep animation loop cleanly once paused decay settles (0% idle CPU/GPU!)
+      if (isPlaying || bass > 0.004 || maxSmooth > 0.045 || shock > 0.03 || sweepP < 1.35) {
+        raf = requestAnimationFrame(draw);
+      }
     };
 
     raf = requestAnimationFrame(draw);
@@ -305,4 +338,4 @@ export function AudioStage({
       </div>
     </section>
   );
-}
+});

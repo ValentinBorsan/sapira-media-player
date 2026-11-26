@@ -179,6 +179,14 @@ export function getFfprobePath(): string | null {
   return cachedFfprobePath;
 }
 
+interface CachedProbeEntry {
+  mtimeMs: number;
+  size: number;
+  result: MediaProbeResult;
+}
+
+const probeCache = new Map<string, CachedProbeEntry>();
+
 export async function probeMediaFile(filePath: string): Promise<MediaProbeResult> {
   const ffmpeg = getFfmpegPath();
   const ffprobe = getFfprobePath();
@@ -194,14 +202,39 @@ export async function probeMediaFile(filePath: string): Promise<MediaProbeResult
     canCopyVideo: false,
   };
 
-  if (!ffprobe || !fs.existsSync(filePath)) {
+  let stat: fs.Stats;
+  try {
+    stat = fs.statSync(filePath);
+  } catch {
+    return fallback;
+  }
+
+  const cached = probeCache.get(filePath);
+  if (cached && cached.mtimeMs === stat.mtimeMs && cached.size === stat.size) {
+    return cached.result;
+  }
+
+  if (!ffprobe) {
     return fallback;
   }
 
   return new Promise((resolve) => {
+    const cacheAndResolve = (res: MediaProbeResult) => {
+      if (probeCache.size >= 256) {
+        const oldestKey = probeCache.keys().next().value;
+        if (oldestKey) probeCache.delete(oldestKey);
+      }
+      probeCache.set(filePath, { mtimeMs: stat.mtimeMs, size: stat.size, result: res });
+      resolve(res);
+    };
+
     const proc = spawn(ffprobe, [
       '-v',
       'quiet',
+      '-probesize',
+      '2000000',
+      '-analyzeduration',
+      '2000000',
       '-print_format',
       'json',
       '-show_format',
@@ -297,7 +330,7 @@ export async function probeMediaFile(filePath: string): Promise<MediaProbeResult
           })
           .filter((ch) => ch.end > ch.start);
 
-        resolve({
+        cacheAndResolve({
           ffmpegAvailable: Boolean(ffmpeg),
           duration,
           formatName,

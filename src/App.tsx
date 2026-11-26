@@ -100,6 +100,7 @@ export function App() {
   const hudTimerRef = useRef<number | null>(null);
   const osdTimerRef = useRef<number | null>(null);
   const lastSavedTimeRef = useRef<number>(0);
+  const lastUiTimeUpdateRef = useRef<number>(0);
   const dragDepthRef = useRef(0);
 
   // Web Audio analyser + 200% Preamp Gain + 5-band EQ refs
@@ -468,6 +469,7 @@ export function App() {
     setAbLoop({ a: null, b: null });
     transcodeFallbackTriedRef.current = false;
     lastSavedTimeRef.current = 0;
+    lastUiTimeUpdateRef.current = 0;
 
     // Invalidate any in-flight transcode seek requests from previous track
     seekRequestIdRef.current += 1;
@@ -615,22 +617,17 @@ export function App() {
         }
       }
 
-      // 2. Local file in Electron: probe codecs & embedded tracks first
-      let probeRes: MediaProbeResult | null = null;
-      if (window.sapira && !currentTrack.isRemote && !currentTrack.isObjectUrl && currentTrack.path) {
-        try {
-          probeRes = await window.sapira.probeMedia(currentTrack.path);
-          if (cancelled) return;
-          setProbe(probeRes);
-          if (probeRes.duration > 0) {
-            setDuration(probeRes.duration);
-          }
-        } catch {
-          // Ignore probe errors
-        }
-      }
-
-      if (cancelled) return;
+      // 2. Local file in Electron: start native containers IMMEDIATELY (0ms wait)
+      // and run ffprobe asynchronously in the background!
+      const LEGACY_TRANSCODE_EXTS = new Set([
+        'AVI', 'FLV', 'WMV', 'MPG', 'MPEG', 'VOB', 'M2TS', 'MTS', 'TS',
+        'ASF', 'DIVX', 'RMVB', '3GP', 'WMA', 'APE', 'WV', 'MKA', 'AC3', 'DTS', 'AMR',
+      ]);
+      const isLocalElectronFile = Boolean(
+        window.sapira && !currentTrack.isRemote && !currentTrack.isObjectUrl && currentTrack.path
+      );
+      const mustAwaitProbeBeforePlay =
+        isLocalElectronFile && LEGACY_TRANSCODE_EXTS.has(currentTrack.ext.toUpperCase());
 
       // Ensure CORS mode is configured BEFORE setting el.src so Web Audio
       // MediaElementAudioSourceNode receives CORS-clean PCM samples under webSecurity: true
@@ -647,7 +644,29 @@ export function App() {
         ensureAudioAnalyser();
       }
 
-      if (probeRes?.needsTranscode && window.sapira) {
+      if (!mustAwaitProbeBeforePlay) {
+        el.src = playUrl;
+        el.load();
+        el.play().catch(() => setIsPlaying(false));
+      }
+
+      let probeRes: MediaProbeResult | null = null;
+      if (isLocalElectronFile && window.sapira) {
+        try {
+          probeRes = await window.sapira.probeMedia(currentTrack.path);
+          if (cancelled) return;
+          setProbe(probeRes);
+          if (probeRes.duration > 0) {
+            setDuration((prev) => (prev > 0 ? prev : probeRes!.duration));
+          }
+        } catch {
+          // Ignore probe errors
+        }
+      }
+
+      if (cancelled) return;
+
+      if (probeRes?.needsTranscode && window.sapira && !transcodeFallbackTriedRef.current) {
         transcodeFallbackTriedRef.current = true;
         const resumePos =
           settings.autoResume && probeRes.duration > 20
@@ -671,7 +690,7 @@ export function App() {
         if (safeStart > 0) {
           showOsd(`Resumed at ${formatTime(safeStart)}`);
         }
-      } else {
+      } else if (mustAwaitProbeBeforePlay) {
         el.src = playUrl;
         el.load();
         el.play().catch(() => setIsPlaying(false));
@@ -2113,6 +2132,13 @@ export function App() {
     });
   };
 
+  const handleOpenCommandPalette = useCallback(() => setCommandPaletteOpen(true), []);
+  const handleOpenStreamModal = useCallback(() => setStreamModalOpen(true), []);
+  const handleOpenMediaInfoModal = useCallback(() => setMediaInfoOpen(true), []);
+  const handleToggleQueueDrawer = useCallback(() => setQueueOpen((v) => !v), []);
+  const handleToggleSettingsModal = useCallback(() => setSettingsOpen((v) => !v), []);
+  const handleToggleShortcutsModal = useCallback(() => setShortcutsOpen((v) => !v), []);
+
   const effectiveHudVisible = !currentTrack || !isVideoMode || hudVisible;
   const aspectClass =
     aspectMode === 'fill'
@@ -2188,16 +2214,16 @@ export function App() {
           settingsOpen={settingsOpen}
           isFullscreen={isFullscreen}
           hudVisible={effectiveHudVisible}
-          onOpenCommandPalette={() => setCommandPaletteOpen(true)}
+          onOpenCommandPalette={handleOpenCommandPalette}
           onOpenFiles={handleOpenFiles}
           onOpenFolder={handleOpenFolder}
-          onOpenStream={() => setStreamModalOpen(true)}
-          onOpenMediaInfo={() => setMediaInfoOpen(true)}
+          onOpenStream={handleOpenStreamModal}
+          onOpenMediaInfo={handleOpenMediaInfoModal}
           onToggleAlwaysOnTop={handleToggleAlwaysOnTop}
           onToggleMiniMode={handleToggleMiniMode}
-          onToggleQueue={() => setQueueOpen((v) => !v)}
-          onToggleSettings={() => setSettingsOpen((v) => !v)}
-          onToggleShortcuts={() => setShortcutsOpen((v) => !v)}
+          onToggleQueue={handleToggleQueueDrawer}
+          onToggleSettings={handleToggleSettingsModal}
+          onToggleShortcuts={handleToggleShortcutsModal}
         />
       )}
 
@@ -2261,13 +2287,21 @@ export function App() {
             const el = e.currentTarget;
             const t = isTranscoding ? transcodeOffset + el.currentTime : el.currentTime;
             const totalDur = isTranscoding ? probe?.duration || duration : el.duration;
-            setCurrentTime(t);
-            if (!isTranscoding && el.buffered.length > 0) {
-              setBuffered(el.buffered.end(el.buffered.length - 1));
-            }
             if (abLoop.a !== null && abLoop.b !== null && t >= abLoop.b) {
               handleSeek(abLoop.a);
               return;
+            }
+            const now = performance.now();
+            const needsTightSync =
+              (isVideoMode && subtitlesEnabled && subtitleCues.length > 0) ||
+              (!isVideoMode && lyricsOpen && lyricsSynced && lyricLines.length > 0);
+            const minIntervalMs = needsTightSync ? 65 : 150;
+            if (now - lastUiTimeUpdateRef.current >= minIntervalMs) {
+              lastUiTimeUpdateRef.current = now;
+              setCurrentTime(t);
+              if (!isTranscoding && el.buffered.length > 0) {
+                setBuffered(el.buffered.end(el.buffered.length - 1));
+              }
             }
             if (
               currentTrack &&

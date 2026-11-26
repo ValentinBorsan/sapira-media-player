@@ -1,3 +1,5 @@
+import { memo } from 'react';
+
 interface PrismLogoProps {
   size: number;
   /** When true the prism light sweep runs (playing); otherwise it rests. */
@@ -13,7 +15,7 @@ interface PrismLogoProps {
  * Sapira signature animation: a beam of prismatic light travels along the
  * ribbon of the logo (masked by the logo itself, so it never spills outside).
  */
-export function PrismLogo({
+export const PrismLogo = memo(function PrismLogo({
   size,
   active = true,
   idle = false,
@@ -26,7 +28,13 @@ export function PrismLogo({
       className={`prism-logo ${active ? 'is-active' : ''} ${idle ? 'is-idle' : ''} ${synced ? 'is-synced' : ''} ${className}`}
       style={{ width: size, height: size }}
     >
-      <img src="./sapira-logo.png" alt="Sapira Media Player" className="prism-logo-img" draggable={false} />
+      <img
+        src="./sapira-logo.png"
+        alt="Sapira Media Player"
+        className="prism-logo-img"
+        decoding="async"
+        draggable={false}
+      />
       <span
         className="prism-sweep"
         style={{ WebkitMaskImage: maskUrl, maskImage: maskUrl }}
@@ -39,4 +47,4 @@ export function PrismLogo({
       />
     </div>
   );
-}
+});

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { memo, useMemo, useState } from 'react';
 import {
   ArrowDown,
   ArrowLeft,
@@ -53,7 +53,7 @@ interface QueueDrawerProps {
   onClearRecents: () => void;
 }
 
-export function QueueDrawer({
+export const QueueDrawer = memo(function QueueDrawer({
   open,
   queue,
   currentIndex,
@@ -676,4 +676,4 @@ export function QueueDrawer({
       </aside>
     </>
   );
-}
+});

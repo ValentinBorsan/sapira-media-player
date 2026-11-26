@@ -12,7 +12,7 @@ const ACCOUNT_ID = process.env.CLOUDFLARE_ACCOUNT_ID || '55229ed0b81896f6ff54b82
 const BUCKET = process.env.SAPIRA_R2_BUCKET || 'sapira-releases';
 const PUBLIC_DOMAIN = 'https://pub-c9b95716429943f88f4ec4cc39a49efd.r2.dev';
 const TEMP_WORKER_NAME = 'sapira-r2-multipart-uploader-tmp';
-const PART_SIZE = 20 * 1024 * 1024; // 20 MB per multipart chunk (well under 100 MB Worker body limit)
+const PART_SIZE = 10 * 1024 * 1024; // 10 MB per multipart chunk for reliable uplink throughput
 
 function resolveAuthToken() {
   if (process.env.CLOUDFLARE_API_TOKEN) {
@@ -166,42 +166,55 @@ async function uploadMultipartFile({ workerUrl, secret, localPath, key, contentT
 
   const uploadId = startRes.uploadId;
   const fd = fs.openSync(localPath, 'r');
-  const uploadedParts = [];
+  const uploadedParts = new Array(totalParts);
+  let completedCount = 0;
+  let nextPart = 1;
+  const CONCURRENCY = 4;
 
   try {
-    for (let partNumber = 1; partNumber <= totalParts; partNumber++) {
-      const offset = (partNumber - 1) * PART_SIZE;
-      const chunkLen = Math.min(PART_SIZE, totalSize - offset);
-      const buf = Buffer.allocUnsafe(chunkLen);
-      fs.readSync(fd, buf, 0, chunkLen, offset);
+    const uploadWorker = async () => {
+      while (true) {
+        const partNumber = nextPart++;
+        if (partNumber > totalParts) return;
 
-      let partResult = null;
-      for (let retry = 1; retry <= 3; retry++) {
-        try {
-          const r = await fetch(
-            `${workerUrl}?action=part&key=${encodeURIComponent(key)}&uploadId=${encodeURIComponent(uploadId)}&partNumber=${partNumber}`,
-            {
-              method: 'PUT',
-              headers: {
-                'x-upload-secret': secret,
-                'Content-Type': 'application/octet-stream',
-              },
-              body: buf,
-            }
-          );
-          if (!r.ok) throw new Error(`HTTP ${r.status}`);
-          partResult = await r.json();
-          break;
-        } catch (err) {
-          if (retry === 3) throw err;
-          await new Promise((res) => setTimeout(res, 1200));
+        const offset = (partNumber - 1) * PART_SIZE;
+        const chunkLen = Math.min(PART_SIZE, totalSize - offset);
+        const buf = Buffer.allocUnsafe(chunkLen);
+        fs.readSync(fd, buf, 0, chunkLen, offset);
+
+        let partResult = null;
+        for (let retry = 1; retry <= 5; retry++) {
+          try {
+            const r = await fetch(
+              `${workerUrl}?action=part&key=${encodeURIComponent(key)}&uploadId=${encodeURIComponent(uploadId)}&partNumber=${partNumber}`,
+              {
+                method: 'PUT',
+                headers: {
+                  'x-upload-secret': secret,
+                  'Content-Type': 'application/octet-stream',
+                },
+                body: buf,
+              }
+            );
+            if (!r.ok) throw new Error(`HTTP ${r.status}`);
+            partResult = await r.json();
+            break;
+          } catch (err) {
+            if (retry === 5) throw err;
+            await new Promise((res) => setTimeout(res, 1000 * retry));
+          }
         }
-      }
 
-      uploadedParts.push(partResult);
-      const pct = Math.round((partNumber / totalParts) * 100);
-      process.stdout.write(`${pct}% `);
-    }
+        uploadedParts[partNumber - 1] = partResult;
+        completedCount += 1;
+        const pct = Math.round((completedCount / totalParts) * 100);
+        process.stdout.write(`${pct}% `);
+      }
+    };
+
+    await Promise.all(
+      Array.from({ length: Math.min(CONCURRENCY, totalParts) }, () => uploadWorker())
+    );
   } finally {
     fs.closeSync(fd);
   }
