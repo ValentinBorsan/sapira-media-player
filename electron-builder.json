@@ -73,5 +73,16 @@
   },
   "portable": {
     "artifactName": "Sapira-Media-Player-Portable-${version}-${arch}.${ext}"
+  },
+  "linux": {
+    "icon": "build/icon.png",
+    "category": "AudioVideo",
+    "artifactName": "Sapira-Media-Player-${version}-${arch}.${ext}",
+    "target": [
+      {
+        "target": "AppImage",
+        "arch": ["x64"]
+      }
+    ]
   }
 }

@@ -2,7 +2,8 @@
   "name": "sapira-media-player",
   "version": "0.1.0",
   "description": "Sapira Media Player — Minimalist open-source audio & video desktop player.",
-  "author": "Valentin Borșan",
+  "author": "Valentin Borșan <afterluma@gmail.com>",
+  "homepage": "https://github.com/ValentinBorsan/sapira-media-player",
   "license": "MIT",
   "repository": {
     "type": "git",
