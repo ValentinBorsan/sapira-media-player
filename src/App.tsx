@@ -2138,6 +2138,7 @@ export function App() {
   const handleToggleQueueDrawer = useCallback(() => setQueueOpen((v) => !v), []);
   const handleToggleSettingsModal = useCallback(() => setSettingsOpen((v) => !v), []);
   const handleToggleShortcutsModal = useCallback(() => setShortcutsOpen((v) => !v), []);
+  const handleCloseLyrics = useCallback(() => setLyricsOpen(false), []);
 
   const effectiveHudVisible = !currentTrack || !isVideoMode || hudVisible;
   const aspectClass =
@@ -2425,6 +2426,7 @@ export function App() {
               track={currentTrack}
               metadata={audioMeta}
               isPlaying={isPlaying}
+              lyricsOpen={lyricsOpen}
               analyser={currentTrack.isRemote ? null : analyser}
               theme={settings.theme}
               language={settings.language}
@@ -2437,9 +2439,10 @@ export function App() {
               lines={lyricLines}
               synced={lyricsSynced}
               activeIndex={activeLyricIndex}
+              isPlaying={isPlaying}
               loading={lyricsLoading}
               sourceLabel={lyricsSource}
-              onClose={() => setLyricsOpen(false)}
+              onClose={handleCloseLyrics}
               onSeek={handleSeek}
               onLoadFile={handleLoadLyricsFile}
               onSearchOnline={handleSearchLyricsOnline}

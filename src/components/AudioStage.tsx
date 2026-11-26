@@ -8,6 +8,7 @@ interface AudioStageProps {
   track: MediaTrack;
   metadata: AudioMetadata;
   isPlaying: boolean;
+  lyricsOpen?: boolean;
   analyser: AnalyserNode | null;
   theme: SapiraTheme;
   language: SapiraLanguage;
@@ -20,6 +21,7 @@ export const AudioStage = memo(function AudioStage({
   track,
   metadata,
   isPlaying,
+  lyricsOpen = false,
   analyser,
   theme,
   language,
@@ -281,7 +283,7 @@ export const AudioStage = memo(function AudioStage({
   const hasCover = Boolean(metadata.coverDataUrl);
 
   return (
-    <section className="audio-stage" onClick={onTogglePlay}>
+    <section className={`audio-stage ${lyricsOpen ? 'lyrics-open' : ''}`} onClick={onTogglePlay}>
       {hasCover && (
         <div
           className="audio-cover-aura"
@@ -306,34 +308,36 @@ export const AudioStage = memo(function AudioStage({
         </>
       )}
 
-      <div className="audio-core-stage">
-        <canvas ref={canvasRef} className="audio-visualizer-canvas" />
+      <div className="audio-hero-column">
+        <div className="audio-core-stage">
+          <canvas ref={canvasRef} className="audio-visualizer-canvas" />
 
-        <div ref={coreRef} className={`audio-prism-core ${hasCover ? 'has-cover' : ''}`}>
-          {hasCover ? (
-            <img src={metadata.coverDataUrl} alt={displayTitle} className="audio-disc-cover" />
-          ) : (
-            <PrismLogo size={168} active={isPlaying} synced />
-          )}
-        </div>
-      </div>
-
-      <div className="audio-meta">
-        <h2 className="audio-track-name" title={displayTitle}>
-          {displayTitle}
-        </h2>
-        {(metadata.artist || metadata.album) && (
-          <div className="audio-artist-line">
-            {metadata.artist && <span className="audio-artist">{metadata.artist}</span>}
-            {metadata.artist && metadata.album && <span className="meta-dot">·</span>}
-            {metadata.album && <span className="audio-album">{metadata.album}</span>}
-            {metadata.year && <span className="audio-year">({metadata.year})</span>}
+          <div ref={coreRef} className={`audio-prism-core ${hasCover ? 'has-cover' : ''}`}>
+            {hasCover ? (
+              <img src={metadata.coverDataUrl} alt={displayTitle} className="audio-disc-cover" />
+            ) : (
+              <PrismLogo size={168} active={isPlaying} synced />
+            )}
           </div>
-        )}
-        <div className="audio-track-details">
-          <span className="format-badge">{track.ext}</span>
-          <span>AUDIO</span>
-          {track.size > 0 && <span>{formatFileSize(track.size)}</span>}
+        </div>
+
+        <div className="audio-meta">
+          <h2 className="audio-track-name" title={displayTitle}>
+            {displayTitle}
+          </h2>
+          {(metadata.artist || metadata.album) && (
+            <div className="audio-artist-line">
+              {metadata.artist && <span className="audio-artist">{metadata.artist}</span>}
+              {metadata.artist && metadata.album && <span className="meta-dot">·</span>}
+              {metadata.album && <span className="audio-album">{metadata.album}</span>}
+              {metadata.year && <span className="audio-year">({metadata.year})</span>}
+            </div>
+          )}
+          <div className="audio-track-details">
+            <span className="format-badge">{track.ext}</span>
+            <span>AUDIO</span>
+            {track.size > 0 && <span>{formatFileSize(track.size)}</span>}
+          </div>
         </div>
       </div>
     </section>
