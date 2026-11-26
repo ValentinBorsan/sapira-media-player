@@ -1,0 +1,545 @@
+<!doctype html>
+<html lang="ro" data-theme="sapphire">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sapira Media Player — Minimalist Futuristic Audio &amp; Video Player</title>
+    <meta
+      name="description"
+      content="Sapira Media Player — Open-source desktop audio &amp; video player for macOS and Windows with Prism HUD, GPU Ambilight, FFmpeg universal codecs, synced lyrics, YouTube streaming, and 30,000+ live radio stations."
+    />
+    <meta name="theme-color" content="#04050a" />
+
+    <!-- OpenGraph / Social Sharing -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Sapira Media Player — Prism HUD Desktop Player" />
+    <meta
+      property="og:description"
+      content="Minimalist open-source 4K video &amp; hi-res audio player for macOS &amp; Windows. GPU Ambilight, FFmpeg remux, synced lyrics, 5-band EQ, YouTube &amp; 30,000+ live radio stations."
+    />
+    <meta property="og:image" content="./og-banner.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Sapira Media Player" />
+    <meta
+      name="twitter:description"
+      content="Minimalist open-source audio &amp; video player for macOS &amp; Windows."
+    />
+    <meta name="twitter:image" content="./og-banner.png" />
+
+    <link rel="icon" type="image/png" href="./sapira-logo.png" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <!-- Ambient Background Refraction -->
+    <div class="ambient-aurora" aria-hidden="true">
+      <div class="aurora-orb orb-primary"></div>
+      <div class="aurora-orb orb-secondary"></div>
+      <div class="aurora-grid"></div>
+    </div>
+
+    <!-- Top Navigation Bar -->
+    <header class="site-header">
+      <div class="container nav-inner">
+        <a href="#" class="brand-link" aria-label="Sapira Media Player">
+          <svg class="brand-logo" width="30" height="30" viewBox="0 0 64 64" fill="none" aria-hidden="true">
+            <defs>
+              <linearGradient id="nav-prism" x1="10" y1="8" x2="56" y2="48" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stop-color="#F5D0FE" />
+                <stop offset="45%" stop-color="#BAE6FD" />
+                <stop offset="100%" stop-color="#67E8F9" />
+              </linearGradient>
+              <linearGradient id="nav-lower" x1="12" y1="54" x2="55" y2="32" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stop-color="#C4B5FD" />
+                <stop offset="52%" stop-color="#93C5FD" />
+                <stop offset="100%" stop-color="#7DD3FC" />
+              </linearGradient>
+              <linearGradient id="nav-rim" x1="10" y1="8" x2="56" y2="34" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stop-color="#FFFFFF" />
+                <stop offset="55%" stop-color="#E0F2FE" />
+                <stop offset="100%" stop-color="#FFFFFF" />
+              </linearGradient>
+              <linearGradient id="nav-wave" x1="30" y1="24" x2="30" y2="40" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stop-color="#FFFFFF" />
+                <stop offset="50%" stop-color="#BAE6FD" />
+                <stop offset="100%" stop-color="#F5D0FE" />
+              </linearGradient>
+            </defs>
+            <path d="M18.8 9.8C14.8 9.8 12 12.8 12 17V47C12 51.2 14.8 54.2 18.8 54.2C20.9 54.2 23.1 53.5 25.3 52.2L51.8 36.9C55.9 34.5 55.9 29.5 51.8 27.1L25.3 11.8C23.1 10.5 20.9 9.8 18.8 9.8Z" fill="url(#nav-prism)" fill-opacity="0.94" stroke="url(#nav-rim)" stroke-width="1.6" stroke-linejoin="round" />
+            <path d="M14.2 51.8L23.2 42.5L43.2 32L53.8 33.8C53.2 35.1 52.5 36.2 51.4 36.9L25.3 52.2C21.2 54.5 16.4 54.1 14.2 51.8Z" fill="url(#nav-lower)" fill-opacity="0.75" />
+            <path d="M23.2 21.5L53.4 29.6M43.2 32L17.5 52.8M23.2 42.5L15.2 12.2" stroke="#FFFFFF" stroke-opacity="0.7" stroke-width="1.1" stroke-linecap="round" />
+            <path d="M22.8 20.8C22.8 19.4 24.3 18.5 25.5 19.2L43.2 29.5C44.4 30.2 44.4 31.8 43.2 32.5L25.5 42.8C24.3 43.5 22.8 42.6 22.8 41.2V20.8Z" fill="#070B16" fill-opacity="0.88" stroke="#E0F2FE" stroke-opacity="0.72" stroke-width="1.1" />
+            <path d="M26.2 25.2A6.5 6.5 0 0 1 35.4 26.8M35.4 35.2A6.5 6.5 0 0 1 26.2 36.8" stroke="#BAE6FD" stroke-opacity="0.75" stroke-width="1" stroke-linecap="round" />
+            <g stroke="url(#nav-wave)" stroke-width="1.6" stroke-linecap="round">
+              <line x1="26.2" y1="29.4" x2="26.2" y2="32.6" />
+              <line x1="28.7" y1="27.5" x2="28.7" y2="34.5" />
+              <line x1="31.2" y1="25.6" x2="31.2" y2="36.4" />
+              <line x1="33.7" y1="27.5" x2="33.7" y2="34.5" />
+              <line x1="36.2" y1="29.4" x2="36.2" y2="32.6" />
+            </g>
+            <path d="M54.2 28.5V35.5M50.7 32H57.7" stroke="#FFFFFF" stroke-width="1.2" stroke-linecap="round" />
+          </svg>
+          <span class="brand-name">Sapira Media Player</span>
+        </a>
+
+        <nav class="nav-links" aria-label="Primary">
+          <a href="#preview" data-i18n="navPreview">Interfață</a>
+          <a href="#features" data-i18n="navFeatures">Funcții</a>
+          <a href="#shortcuts" data-i18n="navShortcuts">Scurtături</a>
+          <a href="#download" data-i18n="navDownload">Descărcare</a>
+        </nav>
+
+        <div class="nav-controls">
+          <div class="theme-dots" role="group" aria-label="Prism Theme">
+            <button type="button" class="theme-dot active" data-set-theme="sapphire" title="Ice Sapphire"></button>
+            <button type="button" class="theme-dot" data-set-theme="violet" title="Nebula Violet"></button>
+            <button type="button" class="theme-dot" data-set-theme="emerald" title="Cyber Emerald"></button>
+            <button type="button" class="theme-dot" data-set-theme="amber" title="Solar Amber"></button>
+            <button type="button" class="theme-dot" data-set-theme="monochrome" title="Obsidian Mono"></button>
+          </div>
+
+          <button type="button" id="lang-toggle" class="pill-btn" aria-label="Switch language">
+            RO / EN
+          </button>
+
+          <a id="github-nav-link" href="https://github.com" target="_blank" rel="noopener noreferrer" class="pill-btn github-pill">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M12 .5C5.65.5.5 5.65.5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.56v-2.02c-3.2.7-3.87-1.38-3.87-1.38-.52-1.33-1.28-1.68-1.28-1.68-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.2 1.77 1.2 1.03 1.76 2.7 1.25 3.36.96.1-.75.4-1.25.73-1.54-2.55-.29-5.24-1.28-5.24-5.68 0-1.26.45-2.28 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.18 1.18a11.05 11.05 0 0 1 5.8 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.83 1.19 3.09 0 4.41-2.7 5.38-5.26 5.67.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12C23.5 5.65 18.35.5 12 .5Z" />
+            </svg>
+            <span>GitHub</span>
+          </a>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <!-- Luxury Full-Bleed Asymmetric Hero Section -->
+      <section class="hero-section">
+        <div class="hero-backdrop" aria-hidden="true">
+          <picture>
+            <source srcset="./hero-prism.webp" type="image/webp" />
+            <img
+              src="./hero-prism.jpg"
+              alt=""
+              class="hero-prism-img"
+              width="1920"
+              height="1080"
+              fetchpriority="high"
+            />
+          </picture>
+          <div class="hero-vignette"></div>
+        </div>
+
+        <div class="container hero-inner">
+          <div class="hero-copy">
+            <span class="hero-kicker">SAPIRA MEDIA PLAYER</span>
+
+            <h1 class="hero-title">
+              <span data-i18n="heroTitleLead">Sunet pur.</span>
+              <span class="text-prism" data-i18n="heroTitleHighlight">Cinema 4K.</span>
+            </h1>
+
+            <p class="hero-subtitle" data-i18n="heroSubtitle">
+              Player desktop open-source pentru macOS și Windows. Zero telemetrie.
+            </p>
+
+            <div class="hero-cta-row">
+              <a id="primary-download-btn" href="#download" class="btn-primary">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="7 10 12 15 17 10" />
+                  <line x1="12" y1="15" x2="12" y2="3" />
+                </svg>
+                <span id="primary-download-label" data-i18n="ctaDownloadDefault">
+                  Descarcă Sapira
+                </span>
+              </a>
+
+              <a href="#download" class="hero-quiet-link" data-i18n="ctaAllPlatforms">
+                macOS &amp; Windows ↓
+              </a>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Interactive Prism HUD Showcase -->
+      <section id="preview" class="showcase-section">
+        <div class="container">
+          <div class="showcase-toolbar">
+            <div class="mode-tabs" role="tablist" aria-label="Player Mode Preview">
+              <button type="button" class="mode-tab active" data-mode="audio" role="tab" aria-selected="true">
+                <span class="tab-indicator"></span>
+                <span data-i18n="modeAudio">Audio Core &amp; Versuri</span>
+              </button>
+              <button type="button" class="mode-tab" data-mode="cinema" role="tab" aria-selected="false">
+                <span class="tab-indicator"></span>
+                <span data-i18n="modeCinema">Cinema 4K &amp; Ambilight</span>
+              </button>
+              <button type="button" class="mode-tab" data-mode="radio" role="tab" aria-selected="false">
+                <span class="tab-indicator"></span>
+                <span data-i18n="modeRadio">YouTube &amp; 30k+ Radio</span>
+              </button>
+            </div>
+
+            <div class="showcase-hint" data-i18n="themeHint">
+              Schimbă tema din colțul dreapta-sus pentru a testa culorile Prism HUD
+            </div>
+          </div>
+
+          <!-- Simulated Sapira Desktop Window -->
+          <div class="player-frame-wrap">
+            <div id="ambilight-halo" class="ambilight-halo"></div>
+
+            <div class="player-window">
+              <!-- Window TitleBar -->
+              <div class="mock-titlebar">
+                <div class="traffic-lights" aria-hidden="true">
+                  <span class="tl tl-close"></span>
+                  <span class="tl tl-min"></span>
+                  <span class="tl tl-max"></span>
+                </div>
+                <div class="mock-window-title">
+                  <img src="./sapira-logo.png" alt="" width="16" height="16" />
+                  <span>SAPIRA MEDIA PLAYER</span>
+                  <span class="telemetry-pill" id="mock-codec-badge">FLAC · 24-BIT / 96KHZ</span>
+                </div>
+                <div class="mock-window-badges">
+                  <span class="hud-mini-pill">EQ ON</span>
+                  <span class="hud-mini-pill">145% BOOST</span>
+                </div>
+              </div>
+
+              <!-- Stage Area -->
+              <div class="mock-stage">
+                <!-- MODE 1: AUDIO CORE + LYRICS -->
+                <div class="stage-panel active" data-panel="audio">
+                  <div class="audio-sanctuary-grid">
+                    <div class="audio-core-visual">
+                      <canvas id="spectrum-canvas" width="320" height="320" aria-hidden="true"></canvas>
+                      <div class="core-disc">
+                        <img src="./sapira-logo.png" alt="Sapira Prism Core" width="112" height="112" />
+                      </div>
+                    </div>
+                    <div class="audio-lyrics-pane">
+                      <div class="track-kicker">AUDIO SANCTUARY · LRCLIB SYNCED</div>
+                      <h3 class="mock-track-title">Midnight Refraction</h3>
+                      <p class="mock-track-artist">Sapira Synth Ensemble · Prism Sessions</p>
+
+                      <div class="mock-lyrics-list" aria-hidden="true">
+                        <p class="lyric-line past">Through obsidian silence the signal wakes</p>
+                        <p class="lyric-line active">Crystalline harmonics across the night sky</p>
+                        <p class="lyric-line">Every frequency carved in sapphire light</p>
+                        <p class="lyric-line">Drifting weightless beyond the horizon</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- MODE 2: CINEMA 4K + AMBILIGHT -->
+                <div class="stage-panel" data-panel="cinema">
+                  <div class="cinema-viewport">
+                    <div class="cinema-scene">
+                      <picture class="cinema-bg-art" aria-hidden="true">
+                        <source srcset="./hero-prism.webp" type="image/webp" />
+                        <img src="./hero-prism.jpg" alt="" />
+                      </picture>
+                      <div class="cinema-top-hud">
+                        <span class="cinema-pill">AMBILIGHT GPU · ON</span>
+                        <span class="cinema-pill">HEVC 10-BIT · DOLBY AC3 REMUX</span>
+                        <span class="cinema-pill">A–B LOOP [01:12 → 02:04]</span>
+                      </div>
+                      <div class="cinema-subtitle-box">
+                        <span data-i18n="mockSubtitle">
+                          „Dincolo de orbită, lumina prismei deschide ultimul portal.”
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- MODE 3: STREAMING & LIVE RADIO -->
+                <div class="stage-panel" data-panel="radio">
+                  <div class="radio-Modal-mock">
+                    <div class="radio-header-row">
+                      <span class="radio-tab-pill active">LIVE RADIO · 30,000+</span>
+                      <span class="radio-tab-pill">YOUTUBE / SOUNDCLOUD (yt-dlp)</span>
+                      <span class="radio-tab-pill">★ FAVORITES</span>
+                    </div>
+                    <div class="radio-station-grid">
+                      <div class="station-card playing">
+                        <div class="station-live-dot"></div>
+                        <div class="station-meta">
+                          <strong>SomaFM — DEF CON Radio</strong>
+                          <span>Electronic / Cyber · 256 kbps AAC · LIVE</span>
+                        </div>
+                        <span class="station-tag">● ON AIR</span>
+                      </div>
+                      <div class="station-card">
+                        <div class="station-icon">RO</div>
+                        <div class="station-meta">
+                          <strong>Guerilla / Rock FM / Jazz</strong>
+                          <span>România &amp; Global Presets · Instant Stream</span>
+                        </div>
+                        <span class="station-tag">MP3 / HLS</span>
+                      </div>
+                      <div class="station-card">
+                        <div class="station-icon">YT</div>
+                        <div class="station-meta">
+                          <strong>YouTube 1080p DASH + FFmpeg Mux</strong>
+                          <span>Auto-extracts direct video/audio without browser ads</span>
+                        </div>
+                        <span class="station-tag">1080P HD</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Floating Glass Playback Dock -->
+              <div class="mock-dock">
+                <div class="mock-timeline">
+                  <span class="mock-time">01:42</span>
+                  <div class="mock-bar-track">
+                    <div class="mock-bar-fill"></div>
+                    <span class="chapter-tick" style="left: 24%" title="Chapter 1: Intro"></span>
+                    <span class="chapter-tick" style="left: 58%" title="Chapter 2: Prism"></span>
+                    <span class="chapter-tick" style="left: 82%" title="Chapter 3: Finale"></span>
+                  </div>
+                  <span class="mock-time">04:18</span>
+                </div>
+
+                <div class="mock-controls-row">
+                  <div class="mock-left-tools">
+                    <span class="kbd-badge">⌘K</span>
+                    <span class="dock-label" data-i18n="dockPalette">Command Palette</span>
+                  </div>
+
+                  <div class="mock-transport">
+                    <button type="button" class="transport-ghost" aria-label="Previous">⏮</button>
+                    <button type="button" id="mock-play-btn" class="transport-play" aria-label="Play or Pause preview">
+                      ❚❚
+                    </button>
+                    <button type="button" class="transport-ghost" aria-label="Next">⏭</button>
+                  </div>
+
+                  <div class="mock-right-tools">
+                    <span class="hud-mini-pill">SLEEP · 30M</span>
+                    <span class="hud-mini-pill">MINI · W</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Features Bento Grid -->
+      <section id="features" class="features-section">
+        <div class="container">
+          <div class="section-heading">
+            <span class="section-eyebrow" data-i18n="featuresEyebrow">ARHITECTURĂ DESKTOP COMPLETĂ</span>
+            <h2 class="section-title" data-i18n="featuresTitle">
+              Construit pentru fiecare format, de la vinil digital la cinema 4K.
+            </h2>
+          </div>
+
+          <div class="bento-grid">
+            <article class="bento-card bento-wide">
+              <div class="card-icon">◈</div>
+              <h3 data-i18n="feat1Title">Motor Universal de Codecuri &amp; FFmpeg</h3>
+              <p data-i18n="feat1Desc">
+                Protocol nativ sapira-media:// cu streaming HTTP 206 Range instantaneu pe fișiere de zeci de GB, completat de remuxare fără pierderi și transcodare automată FFmpeg pentru MKV, AVI, WMV, FLV, TS, HEVC, AC3, DTS, FLAC, WAV și ALAC.
+              </p>
+              <div class="tag-list">
+                <span>MP4 / MKV / AVI</span>
+                <span>HEVC / H.264 / AV1</span>
+                <span>FLAC / ALAC / OPUS</span>
+                <span>Multi-Audio &amp; Embedded Subs</span>
+              </div>
+            </article>
+
+            <article class="bento-card">
+              <div class="card-icon">✦</div>
+              <h3 data-i18n="feat2Title">GPU Ambilight &amp; Cinema Pro</h3>
+              <p data-i18n="feat2Desc">
+                Halou ambiental în timp real în jurul cadrului video, reglaje live de imagine (luminozitate, contrast, saturație, zoom 2×, rotație 90°, oglindire), pas-cu-pas pe cadru, capitole pe timeline și subtitrări .srt/.ass/.vtt.
+              </p>
+            </article>
+
+            <article class="bento-card">
+              <div class="card-icon">♫</div>
+              <h3 data-i18n="feat3Title">Sanctuar Audio &amp; Versuri .LRC</h3>
+              <p data-i18n="feat3Desc">
+                Spectru radial Web Audio sincronizat cu muzica, versuri locale .lrc sau căutate automat online prin LRCLIB, egalizator grafic pe 5 benzi, amplificare volum până la 200% și Sleep Timer cu fade-out lin de 10 secunde.
+              </p>
+            </article>
+
+            <article class="bento-card">
+              <div class="card-icon">◉</div>
+              <h3 data-i18n="feat4Title">YouTube, SoundCloud &amp; 30.000+ Posturi Radio</h3>
+              <p data-i18n="feat4Desc">
+                Redă streamuri HLS (.m3u8), extrage direct linkuri YouTube, Twitch, SoundCloud sau Vimeo prin yt-dlp (inclusiv remux 1080p DASH) și explorează instantaneu posturi radio românești și internaționale.
+              </p>
+            </article>
+
+            <article class="bento-card bento-wide">
+              <div class="card-icon">⌘</div>
+              <h3 data-i18n="feat5Title">Command Palette, Mini-Player &amp; Securitate Sandboxed</h3>
+              <p data-i18n="feat5Desc">
+                Controlează totul instantaneu din tastatură (Cmd/Ctrl + K), comută în Mini-Player flotant (W), salvează playlisturi .m3u și alege dintre 5 teme optice și interfață live Română / Engleză — totul izolat în Electron 45 Sandbox fără nicio conexiune ascunsă.
+              </p>
+              <div class="tag-list">
+                <span>5 Teme Live</span>
+                <span>Română &amp; English</span>
+                <span>Electron 45 Sandbox + CSP</span>
+                <span>MIT Open Source</span>
+              </div>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <!-- Keyboard Shortcuts Matrix -->
+      <section id="shortcuts" class="shortcuts-section">
+        <div class="container">
+          <div class="section-heading">
+            <span class="section-eyebrow" data-i18n="shortcutsEyebrow">VITEZĂ FĂRĂ MOUSE</span>
+            <h2 class="section-title" data-i18n="shortcutsTitle">Comenzi rapide gândite pentru flux continuu</h2>
+          </div>
+
+          <div class="shortcuts-grid">
+            <div class="shortcut-item"><kbd>Space</kbd><span data-i18n="scPlay">Redare / Pauză</span></div>
+            <div class="shortcut-item"><kbd>⌘ / Ctrl + K</kbd><span data-i18n="scPalette">Command Palette</span></div>
+            <div class="shortcut-item"><kbd>⌘ / Ctrl + U</kbd><span data-i18n="scStream">Stream / YouTube / Radio</span></div>
+            <div class="shortcut-item"><kbd>D</kbd><span data-i18n="scAmbilight">Comută GPU Ambilight</span></div>
+            <div class="shortcut-item"><kbd>Y</kbd><span data-i18n="scLyrics">Versuri sincronizate</span></div>
+            <div class="shortcut-item"><kbd>Z</kbd><span data-i18n="scSleep">Sleep Timer cu fade-out</span></div>
+            <div class="shortcut-item"><kbd>W</kbd><span data-i18n="scMini">Mod Mini-Player</span></div>
+            <div class="shortcut-item"><kbd>B</kbd><span data-i18n="scLoop">Buclă A–B</span></div>
+            <div class="shortcut-item"><kbd>. /</kbd><span data-i18n="scFrame">Pas cadru înapoi / înainte</span></div>
+            <div class="shortcut-item"><kbd>R</kbd><span data-i18n="scRotate">Rotește video 90°</span></div>
+            <div class="shortcut-item"><kbd>I / S</kbd><span data-i18n="scPip">Picture-in-Picture / Captură</span></div>
+            <div class="shortcut-item"><kbd>↑ / ↓</kbd><span data-i18n="scVol">Volum până la 200% Boost</span></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Download Section -->
+      <section id="download" class="download-section">
+        <div class="container">
+          <div class="section-heading">
+            <span class="section-eyebrow" data-i18n="downloadEyebrow">DESCĂRCARE GRATUITĂ · OPEN SOURCE</span>
+            <h2 class="section-title" data-i18n="downloadTitle">Alege ediția pentru sistemul tău</h2>
+            <p class="section-sub" data-i18n="downloadSub">
+              Pachete native compilate pe Electron 45. Fără cont, fără abonament, fără telemetrie.
+            </p>
+          </div>
+
+          <div class="download-cards">
+            <!-- macOS Card -->
+            <div class="os-card" id="card-mac">
+              <div class="os-card-header">
+                <div class="os-badge">macOS 12+</div>
+                <h3>macOS</h3>
+                <p data-i18n="macDesc">Optimizat nativ pentru Apple Silicon (M1–M4) și procesoare Intel.</p>
+              </div>
+
+              <div class="dl-buttons-stack">
+                <a id="dl-mac-arm64" class="dl-btn primary" href="https://github.com" rel="noopener noreferrer">
+                  <span>Apple Silicon (.dmg)</span>
+                  <small>arm64 · M1 / M2 / M3 / M4</small>
+                </a>
+                <a id="dl-mac-x64" class="dl-btn" href="https://github.com" rel="noopener noreferrer">
+                  <span>macOS Intel (.dmg)</span>
+                  <small>x64 · Mac Intel</small>
+                </a>
+              </div>
+
+              <div class="code-helper">
+                <div class="code-helper-label">
+                  <span data-i18n="macGatekeeperNote">Prima rulare pe macOS (build open-source nesemnat Apple):</span>
+                  <button type="button" class="copy-btn" data-copy='xattr -cr "/Applications/Sapira Media Player.app"'>
+                    Copy
+                  </button>
+                </div>
+                <code>xattr -cr "/Applications/Sapira Media Player.app"</code>
+              </div>
+            </div>
+
+            <!-- Windows Card -->
+            <div class="os-card" id="card-win">
+              <div class="os-card-header">
+                <div class="os-badge">Windows 10 / 11</div>
+                <h3>Windows</h3>
+                <p data-i18n="winDesc">Instalator complet cu asocieri de fișiere sau versiune portabilă fără instalare.</p>
+              </div>
+
+              <div class="dl-buttons-stack">
+                <a id="dl-win-setup" class="dl-btn primary" href="https://github.com" rel="noopener noreferrer">
+                  <span>Windows Installer (.exe)</span>
+                  <small>x64 · NSIS Setup</small>
+                </a>
+                <a id="dl-win-portable" class="dl-btn" href="https://github.com" rel="noopener noreferrer">
+                  <span>Windows Portable (.exe)</span>
+                  <small>x64 · Zero-Install</small>
+                </a>
+              </div>
+
+              <div class="code-helper">
+                <div class="code-helper-label">
+                  <span data-i18n="optionalToolsNote">Opțional (pentru linkuri YouTube &amp; transcodare AC3/DTS):</span>
+                  <button type="button" class="copy-btn" data-copy="winget install Gyan.FFmpeg yt-dlp.yt-dlp">
+                    Copy
+                  </button>
+                </div>
+                <code>winget install Gyan.FFmpeg yt-dlp.yt-dlp</code>
+              </div>
+            </div>
+          </div>
+
+          <p style="text-align: center; margin-top: 24px; font-size: 0.82rem; color: var(--text-secondary);">
+            <span>SHA-256 Checksums: </span>
+            <a
+              href="https://pub-c9b95716429943f88f4ec4cc39a49efd.r2.dev/v0.1.0/SHA256SUMS.txt"
+              target="_blank"
+              rel="noopener noreferrer"
+              style="color: var(--prism-cyan); font-family: var(--font-mono); text-decoration: underline;"
+            >
+              SHA256SUMS.txt
+            </a>
+            <span> · </span>
+            <a href="./privacy.html" style="color: var(--text-primary); text-decoration: underline;">
+              Privacy &amp; Code Signing Policy
+            </a>
+          </p>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="container footer-inner">
+        <div class="footer-brand" style="flex-wrap: wrap;">
+          <img src="./sapira-logo.png" alt="" width="22" height="22" />
+          <span>Sapira Media Player</span>
+          <span class="footer-sep">·</span>
+          <span data-i18n="footerLicense">Licență MIT Open-Source</span>
+          <span class="footer-sep">·</span>
+          <span style="font-size: 0.8rem; color: var(--text-muted);">
+            Free Windows code signing provided by
+            <a href="https://signpath.io/" target="_blank" rel="noopener noreferrer" style="text-decoration: underline;">SignPath.io</a>,
+            certificate by
+            <a href="https://signpath.org/" target="_blank" rel="noopener noreferrer" style="text-decoration: underline;">SignPath Foundation</a>.
+          </span>
+        </div>
+        <div class="footer-links">
+          <a href="./privacy.html">Privacy &amp; Signing</a>
+          <a id="github-footer-link" href="https://github.com" target="_blank" rel="noopener noreferrer">GitHub</a>
+          <a id="releases-footer-link" href="https://github.com" target="_blank" rel="noopener noreferrer">Releases</a>
+          <a href="#preview" data-i18n="navPreview">Interfață</a>
+        </div>
+      </div>
+    </footer>
+
+    <script src="./app.js" defer></script>
+  </body>
+</html>

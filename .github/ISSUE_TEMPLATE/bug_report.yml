@@ -1,0 +1,29 @@
+name: Bug Report
+description: Report a playback, UI, or platform issue in Sapira Media Player
+labels: ["bug"]
+body:
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating System
+      options:
+        - macOS (Apple Silicon arm64)
+        - macOS (Intel x64)
+        - Windows 10 / 11 (x64)
+        - Linux
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Sapira Version
+      placeholder: e.g. v0.1.0
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: Describe the issue and steps to reproduce it.
+    validations:
+      required: true

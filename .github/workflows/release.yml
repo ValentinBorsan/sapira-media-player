@@ -1,0 +1,178 @@
+name: Build & Release Sapira Media Player
+
+on:
+  push:
+    tags:
+      - 'v*'
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  verify:
+    name: Typecheck & Web/Electron Compile
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --ignore-scripts=false
+      - run: npm run typecheck
+      - run: npm run build
+
+  package-unix:
+    name: Package (${{ matrix.os }})
+    needs: verify
+    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            cmd: npx electron-builder --mac --config electron-builder.json --publish never
+          - os: ubuntu-latest
+            cmd: npx electron-builder --linux AppImage --config electron-builder.json --publish never
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --ignore-scripts=false
+      - run: npm run build
+      - run: ${{ matrix.cmd }}
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sapira-${{ matrix.os }}
+          path: |
+            release/*.dmg
+            release/*.zip
+            release/*.AppImage
+
+  package-windows:
+    name: Package & Sign Windows (SignPath OSS)
+    needs: verify
+    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+    runs-on: windows-latest
+    env:
+      SIGNPATH_ENABLED: ${{ secrets.SIGNPATH_API_TOKEN != '' && secrets.SIGNPATH_ORG_ID != '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --ignore-scripts=false
+      - run: npm run build
+
+      # Stage 1: Build unpacked Windows app directory so the inner EXE can be signed first
+      - name: Build unpacked Windows app
+        run: npx electron-builder --win dir --x64 --config electron-builder.json --publish never
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+
+      - name: Archive inner Sapira Media Player.exe for SignPath
+        if: env.SIGNPATH_ENABLED == 'true'
+        shell: pwsh
+        run: |
+          Compress-Archive -Path "release/win-unpacked/Sapira Media Player.exe" -DestinationPath "release/unsigned-app-bin.zip" -Force
+
+      - name: Upload unsigned inner binary artifact
+        if: env.SIGNPATH_ENABLED == 'true'
+        id: upload-inner-bin
+        uses: actions/upload-artifact@v4
+        with:
+          name: unsigned-windows-app-bin
+          path: release/unsigned-app-bin.zip
+
+      - name: Sign inner binary with SignPath Foundation
+        if: env.SIGNPATH_ENABLED == 'true'
+        uses: signpath/github-action-submit-signing-request@v3
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ secrets.SIGNPATH_ORG_ID }}
+          project-slug: 'sapira-media-player'
+          signing-policy-slug: 'release-signing'
+          artifact-configuration-slug: 'app-binaries'
+          github-artifact-id: ${{ steps.upload-inner-bin.outputs.artifact-id }}
+          wait-for-completion: true
+          output-artifact-directory: release/signed-app-bin
+
+      - name: Replace inner binary with signed executable
+        if: env.SIGNPATH_ENABLED == 'true'
+        shell: pwsh
+        run: |
+          Expand-Archive -Path "release/signed-app-bin/unsigned-app-bin.zip" -DestinationPath "release/win-unpacked" -Force
+
+      # Stage 2: Package NSIS Setup & Portable from win-unpacked
+      - name: Package NSIS Setup and Portable executables
+        run: npx electron-builder --win nsis portable --x64 --prepackaged release/win-unpacked --config electron-builder.json --publish never
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+
+      - name: Archive Windows installers for SignPath
+        if: env.SIGNPATH_ENABLED == 'true'
+        shell: pwsh
+        run: |
+          Compress-Archive -Path "release/Sapira-Media-Player-*.exe" -DestinationPath "release/unsigned-installers.zip" -Force
+
+      - name: Upload unsigned Windows installers artifact
+        if: env.SIGNPATH_ENABLED == 'true'
+        id: upload-installers
+        uses: actions/upload-artifact@v4
+        with:
+          name: unsigned-windows-installers
+          path: release/unsigned-installers.zip
+
+      - name: Sign Windows installers with SignPath Foundation
+        if: env.SIGNPATH_ENABLED == 'true'
+        uses: signpath/github-action-submit-signing-request@v3
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ secrets.SIGNPATH_ORG_ID }}
+          project-slug: 'sapira-media-player'
+          signing-policy-slug: 'release-signing'
+          artifact-configuration-slug: 'installers'
+          github-artifact-id: ${{ steps.upload-installers.outputs.artifact-id }}
+          wait-for-completion: true
+          output-artifact-directory: release/signed-installers
+
+      - name: Extract signed Windows installers
+        if: env.SIGNPATH_ENABLED == 'true'
+        shell: pwsh
+        run: |
+          Remove-Item "release/Sapira-Media-Player-*.exe" -Force
+          Expand-Archive -Path "release/signed-installers/unsigned-installers.zip" -DestinationPath "release" -Force
+
+      - name: Upload final Windows release artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: sapira-windows-latest
+          path: release/Sapira-Media-Player-*.exe
+
+  release:
+    name: Publish GitHub Release & SHA-256 Checksums
+    needs: [package-unix, package-windows]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: sapira-*
+          path: artifacts
+          merge-multiple: true
+      - name: Generate SHA256SUMS.txt
+        working-directory: artifacts
+        run: sha256sum * > SHA256SUMS.txt
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/*
+          generate_release_notes: true

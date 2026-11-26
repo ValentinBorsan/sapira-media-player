@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en" data-theme="sapphire">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Privacy &amp; Code Signing Policy — Sapira Media Player</title>
+    <link rel="icon" type="image/png" href="./sapira-logo.png" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="ambient-aurora" aria-hidden="true">
+      <div class="aurora-orb orb-primary"></div>
+      <div class="aurora-orb orb-secondary"></div>
+    </div>
+
+    <header class="site-header">
+      <div class="container nav-inner">
+        <a href="./" class="brand-link">
+          <img src="./sapira-logo.png" alt="" width="28" height="28" />
+          <span class="brand-name">Sapira Media Player</span>
+        </a>
+        <div class="nav-controls">
+          <a href="./" class="pill-btn">← Back to Home</a>
+        </div>
+      </div>
+    </header>
+
+    <main class="features-section">
+      <div class="container" style="max-width: 820px;">
+        <div class="section-heading" style="text-align: left; margin-bottom: 36px;">
+          <span class="section-eyebrow">OPEN-SOURCE GOVERNANCE &amp; TRUST</span>
+          <h1 class="section-title">Privacy &amp; Code Signing Policy</h1>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 22px;">
+          <article class="bento-card">
+            <h3>Privacy Guarantee</h3>
+            <p style="margin-bottom: 14px; color: var(--text-primary); font-weight: 500;">
+              This program will not transfer any information to other networked systems unless specifically requested by the user or the person installing or operating it.
+            </p>
+            <p>
+              Sapira Media Player contains zero telemetry, zero analytics SDKs, zero crash reporters, and zero advertisements. Local audio and video playback operates 100% offline. Optional network requests occur strictly when initiated by the user (opening a direct stream URL, browsing the community Radio Browser directory, resolving an external link via local <code>yt-dlp</code>, or explicitly requesting online <code>.lrc</code> lyrics from LRCLIB).
+            </p>
+          </article>
+
+          <article class="bento-card">
+            <h3>Code Signing Policy (Windows)</h3>
+            <p style="margin-bottom: 14px;">
+              Free code signing on Windows is provided by
+              <a href="https://signpath.io/" target="_blank" rel="noopener noreferrer" style="color: var(--prism-cyan); text-decoration: underline;">SignPath.io</a>,
+              certificate by
+              <a href="https://signpath.org/" target="_blank" rel="noopener noreferrer" style="color: var(--prism-cyan); text-decoration: underline;">SignPath Foundation</a>.
+            </p>
+            <p style="margin-bottom: 10px;">
+              <strong>Committers, Reviewers &amp; Approvers:</strong> Valentin Borșan (Creator &amp; Lead Maintainer). Multi-Factor Authentication (2FA/MFA) is enforced across all GitHub and SignPath accounts with build or approval privileges.
+            </p>
+            <p>
+              All official Windows executables and installers are built reproducibly on clean GitHub-hosted runners directly from public MIT-licensed source code via GitHub Actions.
+            </p>
+          </article>
+        </div>
+      </div>
+    </main>
+  </body>
+</html>

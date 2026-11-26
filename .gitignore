@@ -1,0 +1,21 @@
+# Dependencies & build outputs
+node_modules/
+dist/
+dist-electron/
+release/
+
+# TypeScript & bundler caches
+*.tsbuildinfo
+.vite/
+
+# Local environment & Cloudflare CLI state
+.env
+.env.*
+!.env.example
+.cloudflare/
+.wrangler/
+
+# OS & editor files
+.DS_Store
+Thumbs.db
+*.log
