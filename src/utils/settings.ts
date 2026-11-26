@@ -19,7 +19,7 @@ export interface SapiraSettings {
 
 export const DEFAULT_SETTINGS: SapiraSettings = {
   theme: 'sapphire',
-  language: 'ro',
+  language: 'en',
   autoResume: true,
   seekStepSeconds: 5,
   defaultPlaybackRate: 1,

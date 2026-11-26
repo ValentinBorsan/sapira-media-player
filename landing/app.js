@@ -149,7 +149,7 @@ const THEME_COLORS = {
 };
 
 (function initSapiraLanding() {
-  let currentLang = (localStorage.getItem('sapira.landing.lang') || 'ro') === 'en' ? 'en' : 'ro';
+  let currentLang = (localStorage.getItem('sapira.landing.lang') || 'en') === 'ro' ? 'ro' : 'en';
   let currentTheme = localStorage.getItem('sapira.landing.theme') || 'sapphire';
   let previewPlaying = true;
 
