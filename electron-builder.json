@@ -77,10 +77,24 @@
   "linux": {
     "icon": "build/icon.png",
     "category": "AudioVideo",
+    "synopsis": "Minimalist open-source 4K video & lossless audio player",
+    "maintainer": "Valentin Borșan <afterluma@gmail.com>",
     "artifactName": "Sapira-Media-Player-${version}-${arch}.${ext}",
+    "desktop": {
+      "entry": {
+        "Name": "Sapira Media Player",
+        "Comment": "Open-source audio & 4K cinema media player",
+        "Categories": "AudioVideo;Audio;Video;Player;",
+        "StartupWMClass": "sapira-media-player"
+      }
+    },
     "target": [
       {
         "target": "AppImage",
+        "arch": ["x64"]
+      },
+      {
+        "target": "deb",
         "arch": ["x64"]
       }
     ]

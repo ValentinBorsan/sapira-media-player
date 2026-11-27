@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { execFileSync } from 'node:child_process';
 import crypto from 'node:crypto';
 import dns from 'node:dns';
 import fs from 'node:fs';
@@ -17,6 +18,14 @@ const PART_SIZE = 10 * 1024 * 1024; // 10 MB per multipart chunk for reliable up
 function resolveAuthToken() {
   if (process.env.CLOUDFLARE_API_TOKEN) {
     return process.env.CLOUDFLARE_API_TOKEN;
+  }
+  const cfBin = path.join(os.homedir(), '.npm-global', 'node_modules', '.bin', 'cf');
+  if (fs.existsSync(cfBin)) {
+    try {
+      execFileSync(cfBin, ['r2', 'buckets', 'list'], { stdio: 'ignore', timeout: 8000 });
+    } catch {
+      // Ignore
+    }
   }
   const candidates = [
     path.join(os.homedir(), 'Library', 'Preferences', 'cloudflare', 'config', 'default.json'),
@@ -242,6 +251,7 @@ async function main() {
   const oneTimeSecret = crypto.randomBytes(32).toString('hex');
 
   const onlyAndroid = process.argv.includes('--only-android');
+  const onlyLinux = process.argv.includes('--only-linux');
 
   const allFiles = [
     {
@@ -264,6 +274,24 @@ async function main() {
       key: `v${version}/Sapira-Media-Player-Portable-${version}-x64.exe`,
       type: 'application/vnd.microsoft.portable-executable',
     },
+    ...(fs.existsSync(`release/Sapira-Media-Player-${version}-x86_64.AppImage`)
+      ? [
+          {
+            local: `release/Sapira-Media-Player-${version}-x86_64.AppImage`,
+            key: `v${version}/Sapira-Media-Player-${version}-x86_64.AppImage`,
+            type: 'application/vnd.appimage',
+          },
+        ]
+      : []),
+    ...(fs.existsSync(`release/Sapira-Media-Player-${version}-amd64.deb`)
+      ? [
+          {
+            local: `release/Sapira-Media-Player-${version}-amd64.deb`,
+            key: `v${version}/Sapira-Media-Player-${version}-amd64.deb`,
+            type: 'application/vnd.debian.binary-package',
+          },
+        ]
+      : []),
     ...(fs.existsSync(`release/Sapira-Media-Player-Full-${version}-android.apk`)
       ? [
           {
@@ -286,7 +314,14 @@ async function main() {
 
   const files = onlyAndroid
     ? allFiles.filter((f) => f.local.endsWith('.apk') || f.local.endsWith('SHA256SUMS.txt'))
-    : allFiles;
+    : onlyLinux
+      ? allFiles.filter(
+          (f) =>
+            f.local.endsWith('.AppImage') ||
+            f.local.endsWith('.deb') ||
+            f.local.endsWith('SHA256SUMS.txt')
+        )
+      : allFiles;
 
   console.log('Provisioning temporary R2 multipart edge uploader...');
   const workerUrl = await deployTempUploaderWorker(token, oneTimeSecret);

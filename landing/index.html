@@ -448,15 +448,23 @@
           <div class="section-heading">
             <h2 class="section-title" data-i18n="downloadTitle">Download Sapira</h2>
             <p class="section-sub" data-i18n="downloadSub">
-              Choose the desktop installer for your platform.
+              Choose the build for macOS, Windows, Linux, or Android.
             </p>
+            <div id="download-stats-pill" class="download-stats-pill" hidden aria-live="polite">
+              <span class="stats-live-dot" aria-hidden="true"></span>
+              <strong id="download-total-value">0</strong>
+              <span id="download-total-label" data-i18n="downloadsTotalLabel">total downloads</span>
+            </div>
           </div>
 
           <div class="download-cards">
             <!-- macOS Card -->
             <div class="os-card" id="card-mac">
               <div class="os-card-header">
-                <div class="os-badge">macOS 12+</div>
+                <div class="os-badge-row">
+                  <div class="os-badge">macOS 12+</div>
+                  <span class="os-dl-count" data-os-count="mac" hidden></span>
+                </div>
                 <h3>macOS</h3>
                 <p data-i18n="macDesc">Natively compiled for Apple Silicon and Intel Macs.</p>
               </div>
@@ -489,7 +497,10 @@
             <!-- Windows Card -->
             <div class="os-card" id="card-win">
               <div class="os-card-header">
-                <div class="os-badge">Windows 10 / 11</div>
+                <div class="os-badge-row">
+                  <div class="os-badge">Windows 10 / 11</div>
+                  <span class="os-dl-count" data-os-count="windows" hidden></span>
+                </div>
                 <h3>Windows</h3>
                 <p data-i18n="winDesc">Full NSIS setup installer with file associations or zero-install portable executable.</p>
               </div>
@@ -519,10 +530,49 @@
               </details>
             </div>
 
+            <!-- Linux Card -->
+            <div class="os-card" id="card-linux">
+              <div class="os-card-header">
+                <div class="os-badge-row">
+                  <div class="os-badge">Linux x64</div>
+                  <span class="os-dl-count" data-os-count="linux" hidden></span>
+                </div>
+                <h3>Linux</h3>
+                <p data-i18n="linuxDesc">Universal AppImage for any distro and native .deb package for Ubuntu, Debian &amp; Mint.</p>
+              </div>
+
+              <div class="dl-buttons-stack">
+                <a id="dl-linux-appimage" class="dl-btn primary" data-dl-os="linux" href="https://github.com/ValentinBorsan/sapira-media-player/releases" rel="noopener noreferrer">
+                  <span>Linux AppImage</span>
+                  <small>x86_64 · Universal Portable</small>
+                </a>
+                <a id="dl-linux-deb" class="dl-btn" data-dl-os="linux" href="https://github.com/ValentinBorsan/sapira-media-player/releases" rel="noopener noreferrer">
+                  <span>Ubuntu / Debian (.deb)</span>
+                  <small>amd64 · Native Package</small>
+                </a>
+              </div>
+
+              <details class="code-disclosure">
+                <summary data-i18n="installHelp">Installation notes</summary>
+                <div class="code-helper">
+                  <div class="code-helper-label">
+                    <span data-i18n="linuxInstallNote">Make AppImage executable (Wayland &amp; VA-API enabled):</span>
+                    <button type="button" class="copy-btn" data-i18n="copy" data-copy="chmod +x Sapira-Media-Player-0.1.0-x86_64.AppImage">
+                      Copy
+                    </button>
+                  </div>
+                  <code>chmod +x Sapira-Media-Player-0.1.0-x86_64.AppImage</code>
+                </div>
+              </details>
+            </div>
+
             <!-- Android Card -->
             <div class="os-card" id="card-android">
               <div class="os-card-header">
-                <div class="os-badge">Android 8.0+</div>
+                <div class="os-badge-row">
+                  <div class="os-badge">Android 8.0+</div>
+                  <span class="os-dl-count" data-os-count="android" hidden></span>
+                </div>
                 <h3>Android</h3>
                 <p data-i18n="androidDesc">Native Kotlin + Media3 APK with background play, MKV/FLAC and ad-free 1080p YouTube.</p>
               </div>

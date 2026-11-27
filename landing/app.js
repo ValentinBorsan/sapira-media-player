@@ -6,12 +6,15 @@
 const RELEASE_CONFIG = {
   version: '0.1.0',
   githubRepo: 'ValentinBorsan/sapira-media-player',
-  customDownloadBaseUrl: 'https://pub-c9b95716429943f88f4ec4cc39a49efd.r2.dev/v0.1.0',
+  customDownloadBaseUrl: 'https://sapira-downloads.afterluma.workers.dev/dl/v0.1.0',
+  statsApiUrl: 'https://sapira-downloads.afterluma.workers.dev/stats',
   files: {
     macArm64: 'Sapira-Media-Player-0.1.0-arm64.dmg',
     macX64: 'Sapira-Media-Player-0.1.0-x64.dmg',
     winSetup: 'Sapira-Media-Player-Setup-0.1.0-x64.exe',
     winPortable: 'Sapira-Media-Player-Portable-0.1.0-x64.exe',
+    linuxAppImage: 'Sapira-Media-Player-0.1.0-x86_64.AppImage',
+    linuxDeb: 'Sapira-Media-Player-0.1.0-amd64.deb',
     androidFull: 'Sapira-Media-Player-Full-0.1.0-android.apk',
   },
 };
@@ -23,10 +26,11 @@ const I18N = {
     navDownload: 'Descărcare',
     heroTitleLead: "Filme și muzică.",
     heroTitleHighlight: "În ritmul tău.",
-    heroSubtitle: "Redă filme, muzică fără pierderi și streamuri live pe macOS, Windows și Android.",
+    heroSubtitle: "Redă filme, muzică fără pierderi și streamuri live pe macOS, Windows, Linux și Android.",
     ctaDownloadDefault: 'Descarcă Sapira',
     ctaDownloadMac: 'Alege versiunea macOS',
     ctaDownloadWin: 'Descarcă pentru Windows',
+    ctaDownloadLinux: 'Alege versiunea Linux',
     ctaDownloadAndroid: 'Descarcă pentru Android (.apk)',
     ctaPreview: "Explorează interfața",
     checksumsLabel: "Sume de control SHA-256",
@@ -62,11 +66,15 @@ const I18N = {
     scPip: 'Picture-in-Picture / Captură',
     scVol: 'Volum până la 200% Boost',
     downloadTitle: "Descarcă Sapira",
-    downloadSub: "Alege versiunea pentru macOS, Windows sau Android.",
+    downloadSub: "Alege versiunea pentru macOS, Windows, Linux sau Android.",
+    downloadsTotalLabel: "descărcări totale",
+    downloadsOsSuffix: "descărcări",
     macDesc: 'Optimizat nativ pentru Apple Silicon (M1–M4) și procesoare Intel.',
     macGatekeeperNote: 'Prima rulare pe macOS (build open-source nesemnat Apple):',
     winDesc: 'Instalator complet cu asocieri de fișiere sau versiune portabilă fără instalare.',
     optionalToolsNote: 'Opțional (pentru linkuri YouTube & transcodare AC3/DTS):',
+    linuxDesc: 'AppImage universal pentru orice distribuție și pachet nativ .deb pentru Ubuntu, Debian & Mint.',
+    linuxInstallNote: 'Fă executabil fișierul AppImage (suport Wayland & VA-API activ):',
     androidDesc: 'APK nativ Kotlin + Media3 cu redare în fundal, MKV/FLAC și YouTube 1080p fără reclame.',
     androidFullBtn: 'Sapira Full (.apk)',
     androidFullSub: 'ARM64 / Universal · YouTube 1080p & Fundal',
@@ -95,10 +103,11 @@ const I18N = {
     navDownload: 'Download',
     heroTitleLead: "Your media.",
     heroTitleHighlight: "In its element.",
-    heroSubtitle: "An open-source player for films, lossless music and live streams on macOS, Windows and Android.",
+    heroSubtitle: "An open-source player for films, lossless music and live streams on macOS, Windows, Linux and Android.",
     ctaDownloadDefault: 'Download Sapira',
     ctaDownloadMac: 'Choose macOS build',
     ctaDownloadWin: 'Download for Windows',
+    ctaDownloadLinux: 'Choose Linux build',
     ctaDownloadAndroid: 'Download for Android (.apk)',
     ctaPreview: "Explore the interface",
     checksumsLabel: "SHA-256 checksums",
@@ -134,11 +143,15 @@ const I18N = {
     scPip: 'Picture-in-Picture / Screenshot',
     scVol: 'Volume up to 200% Boost',
     downloadTitle: "Download Sapira",
-    downloadSub: "Choose the build for macOS, Windows, or Android.",
+    downloadSub: "Choose the build for macOS, Windows, Linux, or Android.",
+    downloadsTotalLabel: "total downloads",
+    downloadsOsSuffix: "downloads",
     macDesc: 'Natively compiled for Apple Silicon (M1–M4) and Intel Macs.',
     macGatekeeperNote: 'First launch on macOS (unsigned open-source build):',
     winDesc: 'Full NSIS setup installer with file associations or zero-install portable executable.',
     optionalToolsNote: 'Optional power tools (for YouTube links & AC3/DTS remux):',
+    linuxDesc: 'Universal AppImage for any distro and native .deb package for Ubuntu, Debian & Mint.',
+    linuxInstallNote: 'Make AppImage executable (Wayland & VA-API enabled):',
     androidDesc: 'Native Kotlin + Media3 APK with background play, MKV/FLAC and ad-free 1080p YouTube.',
     androidFullBtn: 'Sapira Full (.apk)',
     androidFullSub: 'ARM64 / Universal · YouTube 1080p & Background',
@@ -183,6 +196,7 @@ const THEME_COLORS = {
     if (/iphone|ipad|ipod/.test(ua)) return 'other';
     if (ua.includes('win')) return 'windows';
     if (ua.includes('mac')) return 'mac';
+    if (ua.includes('linux')) return 'linux';
     return 'other';
   })();
 
@@ -215,9 +229,12 @@ const THEME_COLORS = {
     if (primaryLabel) {
       if (detectedOs === 'mac') primaryLabel.textContent = dict.ctaDownloadMac;
       else if (detectedOs === 'windows') primaryLabel.textContent = dict.ctaDownloadWin;
+      else if (detectedOs === 'linux') primaryLabel.textContent = dict.ctaDownloadLinux;
       else if (detectedOs === 'android') primaryLabel.textContent = dict.ctaDownloadAndroid;
       else primaryLabel.textContent = dict.ctaDownloadDefault;
     }
+
+    renderDownloadCounts();
 
     const langBtn = document.getElementById('lang-toggle');
     if (langBtn) {
@@ -240,6 +257,8 @@ const THEME_COLORS = {
     const macX64 = document.getElementById('dl-mac-x64');
     const winSetup = document.getElementById('dl-win-setup');
     const winPort = document.getElementById('dl-win-portable');
+    const linuxAppImage = document.getElementById('dl-linux-appimage');
+    const linuxDeb = document.getElementById('dl-linux-deb');
     const androidFull = document.getElementById('dl-android-full');
     const androidHero = document.getElementById('dl-android-hero');
     const primaryCta = document.getElementById('primary-download-btn');
@@ -248,6 +267,8 @@ const THEME_COLORS = {
     if (macX64) macX64.href = buildUrl(RELEASE_CONFIG.files.macX64);
     if (winSetup) winSetup.href = buildUrl(RELEASE_CONFIG.files.winSetup);
     if (winPort) winPort.href = buildUrl(RELEASE_CONFIG.files.winPortable);
+    if (linuxAppImage) linuxAppImage.href = buildUrl(RELEASE_CONFIG.files.linuxAppImage);
+    if (linuxDeb) linuxDeb.href = buildUrl(RELEASE_CONFIG.files.linuxDeb);
     if (androidFull) androidFull.href = buildUrl(RELEASE_CONFIG.files.androidFull);
     if (androidHero) androidHero.href = buildUrl(RELEASE_CONFIG.files.androidFull);
 
@@ -257,6 +278,9 @@ const THEME_COLORS = {
     } else if (detectedOs === 'windows') {
       document.getElementById('card-win')?.classList.add('recommended');
       if (primaryCta) primaryCta.href = base || ghBase ? buildUrl(RELEASE_CONFIG.files.winSetup) : '#card-win';
+    } else if (detectedOs === 'linux') {
+      document.getElementById('card-linux')?.classList.add('recommended');
+      if (primaryCta) primaryCta.href = '#card-linux';
     } else if (detectedOs === 'android') {
       document.getElementById('card-android')?.classList.add('recommended');
       if (primaryCta) primaryCta.href = base || ghBase ? buildUrl(RELEASE_CONFIG.files.androidFull) : '#card-android';
@@ -431,8 +455,104 @@ const THEME_COLORS = {
     requestAnimationFrame(renderSpectrum);
   }
 
+  let downloadStats = null;
+
+  function classifyAssetPlatform(name) {
+    const lower = String(name || '').toLowerCase();
+    if (lower.endsWith('.dmg')) return 'mac';
+    if (lower.endsWith('.exe')) return 'windows';
+    if (lower.endsWith('.apk')) return 'android';
+    if (lower.endsWith('.appimage') || lower.endsWith('.deb') || lower.endsWith('.rpm')) return 'linux';
+    return null;
+  }
+
+  function renderDownloadCounts() {
+    if (!downloadStats) return;
+    const dict = I18N[currentLang];
+    const fmt = new Intl.NumberFormat(currentLang === 'ro' ? 'ro-RO' : 'en-US');
+
+    const pill = document.getElementById('download-stats-pill');
+    const totalVal = document.getElementById('download-total-value');
+    const totalLbl = document.getElementById('download-total-label');
+    if (pill && totalVal && totalLbl) {
+      totalVal.textContent = fmt.format(downloadStats.total || 0);
+      totalLbl.textContent = dict.downloadsTotalLabel;
+      pill.hidden = false;
+    }
+
+    const byPlat = downloadStats.byPlatform || {};
+    document.querySelectorAll('[data-os-count]').forEach((badge) => {
+      const osKey = badge.getAttribute('data-os-count');
+      const count = osKey ? Number(byPlat[osKey]) || 0 : 0;
+      if (count > 0) {
+        badge.textContent = `${fmt.format(count)} ${dict.downloadsOsSuffix}`;
+        badge.hidden = false;
+      } else {
+        badge.hidden = true;
+      }
+    });
+  }
+
+  async function loadDownloadStats() {
+    try {
+      if (RELEASE_CONFIG.statsApiUrl) {
+        const res = await fetch(RELEASE_CONFIG.statsApiUrl);
+        if (res.ok) {
+          downloadStats = await res.json();
+          renderDownloadCounts();
+          return;
+        }
+      }
+    } catch {
+      // Fallback to GitHub Releases API below
+    }
+
+    const repo = RELEASE_CONFIG.githubRepo.trim();
+    if (!repo) return;
+    try {
+      const res = await fetch(`https://api.github.com/repos/${repo}/releases?per_page=20`);
+      if (!res.ok) return;
+      const releases = await res.json();
+      if (!Array.isArray(releases)) return;
+      const byPlatform = { mac: 0, windows: 0, linux: 0, android: 0 };
+      let total = 0;
+      for (const rel of releases) {
+        if (!Array.isArray(rel.assets)) continue;
+        for (const asset of rel.assets) {
+          const plat = classifyAssetPlatform(asset.name);
+          const cnt = Number(asset.download_count) || 0;
+          if (plat) {
+            byPlatform[plat] += cnt;
+            total += cnt;
+          }
+        }
+      }
+      downloadStats = { total, byPlatform };
+      renderDownloadCounts();
+    } catch {
+      // Silent if offline
+    }
+  }
+
+  // Optimistic live increment when clicking a direct package download link
+  document.addEventListener('click', (e) => {
+    const anchor = e.target instanceof Element ? e.target.closest('a[href]') : null;
+    if (!anchor) return;
+    const href = anchor.getAttribute('href') || '';
+    if (href.startsWith('#')) return;
+    const plat = classifyAssetPlatform(href.split('?')[0]);
+    if (!plat) return;
+    if (!downloadStats) {
+      downloadStats = { total: 0, byPlatform: { mac: 0, windows: 0, linux: 0, android: 0 } };
+    }
+    downloadStats.total = (Number(downloadStats.total) || 0) + 1;
+    downloadStats.byPlatform[plat] = (Number(downloadStats.byPlatform[plat]) || 0) + 1;
+    renderDownloadCounts();
+  });
+
   applyTheme(currentTheme);
   applyLanguage(currentLang);
   wireDownloadLinks();
+  loadDownloadStats();
   requestAnimationFrame(renderSpectrum);
 })();

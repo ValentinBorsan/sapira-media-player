@@ -104,6 +104,13 @@ const STREAM_HIGH_WATER_MARK = 512 * 1024; // 512 KB chunks for fast 4K/FLAC see
 app.commandLine.appendSwitch('ignore-gpu-blocklist');
 app.commandLine.appendSwitch('enable-gpu-rasterization');
 app.commandLine.appendSwitch('enable-zero-copy');
+if (process.platform === 'linux') {
+  app.commandLine.appendSwitch('ozone-platform-hint', 'auto');
+  app.commandLine.appendSwitch(
+    'enable-features',
+    'VaapiVideoDecodeLinuxGL,VaapiVideoDecoder,PlatformHEVCDecoderSupport'
+  );
+}
 
 protocol.registerSchemesAsPrivileged([
   {
