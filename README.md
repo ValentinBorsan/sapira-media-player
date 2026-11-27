@@ -1,6 +1,8 @@
 # Sapira Media Player
 
-**Sapira Media Player** is a minimalist, futuristic open-source desktop audio & video media player built with Electron, React 19, and TypeScript, featuring a custom **Prism HUD** interface (*Ice Sapphire & Pearl* default theme).
+**Official Website & Downloads:** [https://sapiraplayer.pages.dev/](https://sapiraplayer.pages.dev/)
+
+**Sapira Media Player** is a minimalist, futuristic open-source audio & 4K cinema player for **macOS**, **Windows**, **Linux**, and **Android**, featuring a custom **Prism HUD** interface (*Ice Sapphire & Pearl* default theme).
 
 ## Highlights
 
