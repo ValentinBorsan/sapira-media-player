@@ -29,15 +29,9 @@
     <link rel="icon" type="image/png" href="./sapira-logo.png" />
     <link rel="stylesheet" href="./styles.css" />
   </head>
-  <body>
-    <!-- Ambient Background Refraction -->
-    <div class="ambient-aurora" aria-hidden="true">
-      <div class="aurora-orb orb-primary"></div>
-      <div class="aurora-orb orb-secondary"></div>
-      <div class="aurora-grid"></div>
-    </div>
-
+  <body class="landing-page">
     <!-- Top Navigation Bar -->
+    <a href="#main" class="skip-link" data-i18n="skipLink">Skip to content</a>
     <header class="site-header">
       <div class="container nav-inner">
         <a href="#" class="brand-link" aria-label="Sapira Media Player">
@@ -84,12 +78,12 @@
         <nav class="nav-links" aria-label="Primary">
           <a href="#preview" data-i18n="navPreview">Interface</a>
           <a href="#features" data-i18n="navFeatures">Features</a>
-          <a href="#shortcuts" data-i18n="navShortcuts">Shortcuts</a>
+          <a href="#android" data-i18n="navAndroid">Android</a>
           <a href="#download" data-i18n="navDownload">Download</a>
         </nav>
 
         <div class="nav-controls">
-          <div class="theme-dots" role="group" aria-label="Prism Theme">
+          <div class="theme-dots" role="group" aria-label="Preview theme">
             <button type="button" class="theme-dot active" data-set-theme="sapphire" title="Ice Sapphire"></button>
             <button type="button" class="theme-dot" data-set-theme="violet" title="Nebula Violet"></button>
             <button type="button" class="theme-dot" data-set-theme="emerald" title="Cyber Emerald"></button>
@@ -114,40 +108,40 @@
       <nav class="mobile-quick-nav" aria-label="Mobile sections">
         <a href="#preview" data-i18n="navPreview">Interface</a>
         <a href="#features" data-i18n="navFeatures">Features</a>
-        <a href="#shortcuts" data-i18n="navShortcuts">Shortcuts</a>
+        <a href="#android" data-i18n="navAndroid">Android</a>
         <a href="#download" data-i18n="navDownload">Download</a>
       </nav>
     </header>
 
-    <main>
+    <main id="main">
       <!-- Luxury Full-Bleed Asymmetric Hero Section -->
       <section class="hero-section">
-        <div class="hero-backdrop" aria-hidden="true">
-          <picture>
-            <source srcset="./hero-prism.webp" type="image/webp" />
-            <img
-              src="./hero-prism.jpg"
-              alt=""
-              class="hero-prism-img"
-              width="1920"
-              height="1080"
-              fetchpriority="high"
-            />
-          </picture>
-          <div class="hero-vignette"></div>
-        </div>
-
         <div class="container hero-inner">
+          <div class="hero-backdrop" aria-hidden="true">
+            <picture>
+              <source srcset="./hero-prism.webp" type="image/webp" />
+              <img
+                src="./hero-prism.jpg"
+                alt=""
+                class="hero-prism-img"
+                width="1920"
+                height="1080"
+                fetchpriority="high"
+              />
+            </picture>
+            <div class="hero-vignette"></div>
+          </div>
+
           <div class="hero-copy">
-            <span class="hero-kicker">SAPIRA MEDIA PLAYER</span>
+            <span class="hero-kicker" data-i18n="heroKicker">OPEN-SOURCE MEDIA PLAYER</span>
 
             <h1 class="hero-title">
-              <span data-i18n="heroTitleLead">Pure sound.</span>
-              <span class="text-prism" data-i18n="heroTitleHighlight">4K cinema.</span>
+              <span data-i18n="heroTitleLead">Your media.</span>
+              <span class="text-prism" data-i18n="heroTitleHighlight">In its element.</span>
             </h1>
 
             <p class="hero-subtitle" data-i18n="heroSubtitle">
-              Minimalist open-source player for macOS and Windows. Zero telemetry.
+              An open-source player for films, lossless music and live streams on macOS and Windows.
             </p>
 
             <div class="hero-cta-row">
@@ -162,10 +156,11 @@
                 </span>
               </a>
 
-              <a href="#download" class="hero-quiet-link" data-i18n="ctaAllPlatforms">
-                macOS &amp; Windows ↓
+              <a href="#preview" class="hero-quiet-link" data-i18n="ctaPreview">
+                Explore the interface
               </a>
             </div>
+            <p class="hero-note" data-i18n="heroNote">Free under the MIT license. No account or telemetry.</p>
           </div>
         </div>
       </section>
@@ -173,18 +168,19 @@
       <!-- Interactive Prism HUD Showcase -->
       <section id="preview" class="showcase-section">
         <div class="container">
+          <div class="section-heading showcase-heading">
+            <h2 class="section-title" data-i18n="previewTitle">Meet the player.</h2>
+            <p class="section-sub" data-i18n="previewIntro">Explore the desktop interface in this interactive preview.</p>
+          </div>
           <div class="showcase-toolbar">
             <div class="mode-tabs" role="tablist" aria-label="Player Mode Preview">
-              <button type="button" class="mode-tab active" data-mode="audio" role="tab" aria-selected="true">
-                <span class="tab-indicator"></span>
+              <button type="button" class="mode-tab active" data-mode="audio" id="tab-audio" role="tab" aria-controls="panel-audio" tabindex="0" aria-selected="true">
                 <span data-i18n="modeAudio">Audio Core &amp; Lyrics</span>
               </button>
-              <button type="button" class="mode-tab" data-mode="cinema" role="tab" aria-selected="false">
-                <span class="tab-indicator"></span>
+              <button type="button" class="mode-tab" data-mode="cinema" id="tab-cinema" role="tab" aria-controls="panel-cinema" tabindex="-1" aria-selected="false">
                 <span data-i18n="modeCinema">4K Cinema &amp; Ambilight</span>
               </button>
-              <button type="button" class="mode-tab" data-mode="radio" role="tab" aria-selected="false">
-                <span class="tab-indicator"></span>
+              <button type="button" class="mode-tab" data-mode="radio" id="tab-radio" role="tab" aria-controls="panel-radio" tabindex="-1" aria-selected="false">
                 <span data-i18n="modeRadio">YouTube &amp; 30k+ Radio</span>
               </button>
             </div>
@@ -220,7 +216,7 @@
               <!-- Stage Area -->
               <div class="mock-stage">
                 <!-- MODE 1: AUDIO CORE + LYRICS -->
-                <div class="stage-panel active" data-panel="audio">
+                <div class="stage-panel active" data-panel="audio" id="panel-audio" role="tabpanel" aria-labelledby="tab-audio">
                   <div class="audio-sanctuary-grid">
                     <div class="audio-core-visual">
                       <canvas id="spectrum-canvas" width="320" height="320" aria-hidden="true"></canvas>
@@ -244,7 +240,7 @@
                 </div>
 
                 <!-- MODE 2: CINEMA 4K + AMBILIGHT -->
-                <div class="stage-panel" data-panel="cinema">
+                <div class="stage-panel" data-panel="cinema" id="panel-cinema" role="tabpanel" aria-labelledby="tab-cinema" hidden>
                   <div class="cinema-viewport">
                     <div class="cinema-scene">
                       <picture class="cinema-bg-art" aria-hidden="true">
@@ -266,7 +262,7 @@
                 </div>
 
                 <!-- MODE 3: STREAMING & LIVE RADIO -->
-                <div class="stage-panel" data-panel="radio">
+                <div class="stage-panel" data-panel="radio" id="panel-radio" role="tabpanel" aria-labelledby="tab-radio" hidden>
                   <div class="radio-Modal-mock">
                     <div class="radio-header-row">
                       <span class="radio-tab-pill active">LIVE RADIO · 30,000+</span>
@@ -323,11 +319,11 @@
                   </div>
 
                   <div class="mock-transport">
-                    <button type="button" class="transport-ghost" aria-label="Previous">⏮</button>
+                    <span class="transport-ghost" aria-hidden="true">⏮</span>
                     <button type="button" id="mock-play-btn" class="transport-play" aria-label="Play or Pause preview">
                       ❚❚
                     </button>
-                    <button type="button" class="transport-ghost" aria-label="Next">⏭</button>
+                    <span class="transport-ghost" aria-hidden="true">⏭</span>
                   </div>
 
                   <div class="mock-right-tools">
@@ -345,19 +341,16 @@
       <section id="features" class="features-section">
         <div class="container">
           <div class="section-heading">
-            <span class="section-eyebrow" data-i18n="featuresEyebrow">COMPLETE DESKTOP ARCHITECTURE</span>
             <h2 class="section-title" data-i18n="featuresTitle">
-              Engineered for every format, from lossless audio to 4K cinema.
+              Made for the way you watch and listen.
             </h2>
           </div>
 
           <div class="bento-grid">
             <article class="bento-card bento-wide">
               <div class="card-icon">◈</div>
-              <h3 data-i18n="feat1Title">Universal Codec &amp; FFmpeg Engine</h3>
-              <p data-i18n="feat1Desc">
-                Custom sapira-media:// HTTP 206 Range streaming for instant seeking on multi-GB files, backed by automatic lossless remuxing and FFmpeg transcoding for MKV, AVI, WMV, FLV, TS, HEVC, AC3, DTS, FLAC, WAV, and ALAC.
-              </p>
+              <h3 data-i18n="feat1Title">Your formats, one player</h3>
+              <p data-i18n="feat1Desc">Play MKV, MP4, FLAC and more. FFmpeg extends compatibility with legacy video and audio formats.</p>
               <div class="tag-list">
                 <span>MP4 / MKV / AVI</span>
                 <span>HEVC / H.264 / AV1</span>
@@ -368,34 +361,26 @@
 
             <article class="bento-card">
               <div class="card-icon">✦</div>
-              <h3 data-i18n="feat2Title">GPU Ambilight &amp; Cinema Pro</h3>
-              <p data-i18n="feat2Desc">
-                Real-time ambient canvas glow around video frames, live image adjustments (brightness, contrast, saturation, 2× zoom, 90° rotation, mirror), frame-by-frame stepping, timeline chapters, and .srt/.ass/.vtt subtitles.
-              </p>
+              <h3 data-i18n="feat2Title">Cinema with Ambilight</h3>
+              <p data-i18n="feat2Desc">Ambient light follows the picture. Adjust the frame and explore films with subtitles, chapters and frame-by-frame playback.</p>
             </article>
 
             <article class="bento-card">
               <div class="card-icon">♫</div>
-              <h3 data-i18n="feat3Title">Audio Sanctuary &amp; Synced Lyrics</h3>
-              <p data-i18n="feat3Desc">
-                Music-reactive Web Audio radial spectrum, sidecar .lrc or automatic online LRCLIB synced lyrics, 5-band graphic equalizer, up to 200% preamp volume boost, and Sleep Timer with a gentle 10-second fade-out.
-              </p>
+              <h3 data-i18n="feat3Title">Sound and synced lyrics</h3>
+              <p data-i18n="feat3Desc">Fine-tune your sound with the five-band equalizer. Follow the lyrics as the song plays.</p>
             </article>
 
             <article class="bento-card">
               <div class="card-icon">◉</div>
-              <h3 data-i18n="feat4Title">YouTube, SoundCloud &amp; 30,000+ Radio Stations</h3>
-              <p data-i18n="feat4Desc">
-                Play direct HLS (.m3u8) streams, extract YouTube, Twitch, SoundCloud, or Vimeo streams via yt-dlp (including 1080p DASH muxing), and browse global &amp; Romanian live radio stations with one click.
-              </p>
+              <h3 data-i18n="feat4Title">Streams and live radio</h3>
+              <p data-i18n="feat4Desc">Open HLS streams, discover radio stations or use yt-dlp with YouTube and SoundCloud links.</p>
             </article>
 
-            <article class="bento-card bento-wide">
+            <article class="bento-card">
               <div class="card-icon">⌘</div>
-              <h3 data-i18n="feat5Title">Command Palette, Mini-Player &amp; Sandboxed Security</h3>
-              <p data-i18n="feat5Desc">
-                Control everything from the keyboard (Cmd/Ctrl + K), pop into the floating Mini-Player (W), manage .m3u playlists, and switch between 5 optical themes and live English / Romanian UI inside a hardened Electron 45 Sandbox.
-              </p>
+              <h3 data-i18n="feat5Title">Keep playback within reach</h3>
+              <p data-i18n="feat5Desc">Open the command palette from your keyboard, switch to the mini-player and organize files in M3U playlists.</p>
               <div class="tag-list">
                 <span>5 Live Themes</span>
                 <span>English &amp; Română</span>
@@ -411,35 +396,59 @@
       <section id="shortcuts" class="shortcuts-section">
         <div class="container">
           <div class="section-heading">
-            <span class="section-eyebrow" data-i18n="shortcutsEyebrow">KEYBOARD-FIRST SPEED</span>
-            <h2 class="section-title" data-i18n="shortcutsTitle">Precision shortcuts built for uninterrupted flow</h2>
+            <h2 class="section-title" data-i18n="shortcutsTitle">Desktop shortcuts</h2>
           </div>
 
-          <div class="shortcuts-grid">
-            <div class="shortcut-item"><kbd>Space</kbd><span data-i18n="scPlay">Play / Pause</span></div>
-            <div class="shortcut-item"><kbd>⌘ / Ctrl + K</kbd><span data-i18n="scPalette">Command Palette</span></div>
-            <div class="shortcut-item"><kbd>⌘ / Ctrl + U</kbd><span data-i18n="scStream">Stream / YouTube / Radio</span></div>
-            <div class="shortcut-item"><kbd>D</kbd><span data-i18n="scAmbilight">Toggle GPU Ambilight</span></div>
-            <div class="shortcut-item"><kbd>Y</kbd><span data-i18n="scLyrics">Synchronized Lyrics</span></div>
-            <div class="shortcut-item"><kbd>Z</kbd><span data-i18n="scSleep">Sleep Timer with fade-out</span></div>
-            <div class="shortcut-item"><kbd>W</kbd><span data-i18n="scMini">Mini-Player Mode</span></div>
-            <div class="shortcut-item"><kbd>B</kbd><span data-i18n="scLoop">A–B Segment Loop</span></div>
-            <div class="shortcut-item"><kbd>. /</kbd><span data-i18n="scFrame">Frame Step Back / Forward</span></div>
-            <div class="shortcut-item"><kbd>R</kbd><span data-i18n="scRotate">Rotate Video 90°</span></div>
-            <div class="shortcut-item"><kbd>I / S</kbd><span data-i18n="scPip">Picture-in-Picture / Screenshot</span></div>
-            <div class="shortcut-item"><kbd>↑ / ↓</kbd><span data-i18n="scVol">Volume up to 200% Boost</span></div>
+          <details class="shortcut-disclosure">
+            <summary data-i18n="showShortcuts">View keyboard shortcuts</summary>
+            <div class="shortcuts-grid">
+              <div class="shortcut-item"><kbd>Space</kbd><span data-i18n="scPlay">Play / Pause</span></div>
+              <div class="shortcut-item"><kbd>⌘ / Ctrl + K</kbd><span data-i18n="scPalette">Command Palette</span></div>
+              <div class="shortcut-item"><kbd>⌘ / Ctrl + U</kbd><span data-i18n="scStream">Stream / YouTube / Radio</span></div>
+              <div class="shortcut-item"><kbd>D</kbd><span data-i18n="scAmbilight">Toggle GPU Ambilight</span></div>
+              <div class="shortcut-item"><kbd>Y</kbd><span data-i18n="scLyrics">Synchronized Lyrics</span></div>
+              <div class="shortcut-item"><kbd>Z</kbd><span data-i18n="scSleep">Sleep Timer with fade-out</span></div>
+              <div class="shortcut-item"><kbd>W</kbd><span data-i18n="scMini">Mini-Player Mode</span></div>
+              <div class="shortcut-item"><kbd>B</kbd><span data-i18n="scLoop">A–B Segment Loop</span></div>
+              <div class="shortcut-item"><kbd>. /</kbd><span data-i18n="scFrame">Frame Step Back / Forward</span></div>
+              <div class="shortcut-item"><kbd>R</kbd><span data-i18n="scRotate">Rotate Video 90°</span></div>
+              <div class="shortcut-item"><kbd>I / S</kbd><span data-i18n="scPip">Picture-in-Picture / Screenshot</span></div>
+              <div class="shortcut-item"><kbd>↑ / ↓</kbd><span data-i18n="scVol">Volume up to 200% Boost</span></div>
+            </div>
+          </details>
+        </div>
+      </section>
+
+      <section id="android" class="android-section">
+        <div class="container android-layout">
+          <div class="android-copy">
+            <h2 class="section-title" data-i18n="androidTitle">Sapira on Android.</h2>
+            <p class="section-sub" data-i18n="androidIntro">Play your library on the go. Resume a film where you left off, use fullscreen gestures, or keep listening with the screen locked.</p>
+            <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 14px; margin-top: 18px;">
+              <a id="dl-android-hero" class="btn btn-primary" href="#card-android">
+                <span data-i18n="ctaDownloadAndroid">Download for Android (.apk)</span>
+              </a>
+              <a class="hero-quiet-link" href="https://github.com/ValentinBorsan/sapira-media-player/tree/main/android" data-i18n="androidSource">Explore the Android project</a>
+            </div>
+          </div>
+          <div class="android-visual" aria-hidden="true">
+            <div class="android-phone">
+              <picture>
+                <source srcset="./hero-prism.webp" type="image/webp" />
+                <img src="./hero-prism.jpg" alt="" loading="lazy" width="1920" height="1080" />
+              </picture>
+              <div class="android-glass"></div>
+            </div>
           </div>
         </div>
       </section>
 
-      <!-- Download Section -->
       <section id="download" class="download-section">
         <div class="container">
           <div class="section-heading">
-            <span class="section-eyebrow" data-i18n="downloadEyebrow">FREE DOWNLOAD · OPEN SOURCE</span>
-            <h2 class="section-title" data-i18n="downloadTitle">Choose the build for your platform</h2>
+            <h2 class="section-title" data-i18n="downloadTitle">Download Sapira</h2>
             <p class="section-sub" data-i18n="downloadSub">
-              Native installers built on Electron 45. No account, no subscription, zero telemetry.
+              Choose the desktop installer for your platform.
             </p>
           </div>
 
@@ -449,13 +458,13 @@
               <div class="os-card-header">
                 <div class="os-badge">macOS 12+</div>
                 <h3>macOS</h3>
-                <p data-i18n="macDesc">Natively compiled for Apple Silicon (M1–M4) and Intel Macs.</p>
+                <p data-i18n="macDesc">Natively compiled for Apple Silicon and Intel Macs.</p>
               </div>
 
               <div class="dl-buttons-stack">
                 <a id="dl-mac-arm64" class="dl-btn primary" href="https://github.com/ValentinBorsan/sapira-media-player/releases" rel="noopener noreferrer">
                   <span>Apple Silicon (.dmg)</span>
-                  <small>arm64 · M1 / M2 / M3 / M4</small>
+                  <small>arm64 · Apple Silicon</small>
                 </a>
                 <a id="dl-mac-x64" class="dl-btn" href="https://github.com/ValentinBorsan/sapira-media-player/releases" rel="noopener noreferrer">
                   <span>macOS Intel (.dmg)</span>
@@ -463,15 +472,18 @@
                 </a>
               </div>
 
-              <div class="code-helper">
-                <div class="code-helper-label">
-                  <span data-i18n="macGatekeeperNote">First launch on macOS (unsigned open-source build):</span>
-                  <button type="button" class="copy-btn" data-copy='xattr -cr "/Applications/Sapira Media Player.app"'>
-                    Copy
-                  </button>
+              <details class="code-disclosure">
+                <summary data-i18n="installHelp">Installation notes</summary>
+                <div class="code-helper">
+                  <div class="code-helper-label">
+                    <span data-i18n="macGatekeeperNote">First launch on macOS (unsigned open-source build):</span>
+                    <button type="button" class="copy-btn" data-i18n="copy" data-copy='xattr -cr "/Applications/Sapira Media Player.app"'>
+                      Copy
+                    </button>
+                  </div>
+                  <code>xattr -cr "/Applications/Sapira Media Player.app"</code>
                 </div>
-                <code>xattr -cr "/Applications/Sapira Media Player.app"</code>
-              </div>
+              </details>
             </div>
 
             <!-- Windows Card -->
@@ -493,20 +505,53 @@
                 </a>
               </div>
 
-              <div class="code-helper">
-                <div class="code-helper-label">
-                  <span data-i18n="optionalToolsNote">Optional power tools (for YouTube links &amp; AC3/DTS remux):</span>
-                  <button type="button" class="copy-btn" data-copy="winget install Gyan.FFmpeg yt-dlp.yt-dlp">
-                    Copy
-                  </button>
+              <details class="code-disclosure">
+                <summary data-i18n="installHelp">Installation notes</summary>
+                <div class="code-helper">
+                  <div class="code-helper-label">
+                    <span data-i18n="optionalToolsNote">Optional power tools (for YouTube links &amp; AC3/DTS remux):</span>
+                    <button type="button" class="copy-btn" data-i18n="copy" data-copy="winget install Gyan.FFmpeg yt-dlp.yt-dlp">
+                      Copy
+                    </button>
+                  </div>
+                  <code>winget install Gyan.FFmpeg yt-dlp.yt-dlp</code>
                 </div>
-                <code>winget install Gyan.FFmpeg yt-dlp.yt-dlp</code>
+              </details>
+            </div>
+
+            <!-- Android Card -->
+            <div class="os-card" id="card-android">
+              <div class="os-card-header">
+                <div class="os-badge">Android 8.0+</div>
+                <h3>Android</h3>
+                <p data-i18n="androidDesc">Native Kotlin + Media3 APK with background play, MKV/FLAC and ad-free 1080p YouTube.</p>
               </div>
+
+              <div class="dl-buttons-stack">
+                <a id="dl-android-full" class="dl-btn primary" href="https://github.com/ValentinBorsan/sapira-media-player/releases" rel="noopener noreferrer">
+                  <span data-i18n="androidFullBtn">Sapira Full (.apk)</span>
+                  <small data-i18n="androidFullSub">ARM64 / Universal · YouTube 1080p &amp; Background</small>
+                </a>
+                <span class="dl-btn" style="opacity: 0.68; cursor: default;" aria-disabled="true">
+                  <span data-i18n="androidPlayBtn">Google Play Store</span>
+                  <small data-i18n="androidPlaySub">Coming soon · Official Play edition</small>
+                </span>
+              </div>
+
+              <details class="code-disclosure">
+                <summary data-i18n="installHelp">Installation notes</summary>
+                <div class="code-helper">
+                  <div class="code-helper-label">
+                    <span data-i18n="androidInstallNote">Signed RSA-4096 release APK · Share links directly from YouTube to Sapira Full.</span>
+                  </div>
+                  <code>org.sapira.mediaplayer.full · ~3.6 MB</code>
+                </div>
+              </details>
             </div>
           </div>
 
           <p class="checksum-note">
-            <span>SHA-256 Checksums: </span>
+            <span data-i18n="checksumsLabel">SHA-256 checksums</span>
             <a
               href="https://pub-c9b95716429943f88f4ec4cc39a49efd.r2.dev/v0.1.0/SHA256SUMS.txt"
               target="_blank"
@@ -516,7 +561,7 @@
               SHA256SUMS.txt
             </a>
             <span> · </span>
-            <a href="./privacy.html" class="policy-link">
+            <a href="./privacy.html" class="policy-link" data-i18n="privacyPolicy">
               Privacy &amp; Code Signing Policy
             </a>
           </p>
@@ -540,7 +585,7 @@
           </span>
         </div>
         <div class="footer-links">
-          <a href="./privacy.html">Privacy &amp; Signing</a>
+          <a href="./privacy.html" data-i18n="privacyPolicy">Privacy &amp; Code Signing Policy</a>
           <a id="github-footer-link" href="https://github.com/ValentinBorsan/sapira-media-player" target="_blank" rel="noopener noreferrer">GitHub</a>
           <a id="releases-footer-link" href="https://github.com/ValentinBorsan/sapira-media-player/releases" target="_blank" rel="noopener noreferrer">Releases</a>
           <a href="#preview" data-i18n="navPreview">Interface</a>

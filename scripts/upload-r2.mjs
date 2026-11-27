@@ -241,7 +241,9 @@ async function main() {
   const token = resolveAuthToken();
   const oneTimeSecret = crypto.randomBytes(32).toString('hex');
 
-  const files = [
+  const onlyAndroid = process.argv.includes('--only-android');
+
+  const allFiles = [
     {
       local: `release/Sapira-Media-Player-${version}-arm64.dmg`,
       key: `v${version}/Sapira-Media-Player-${version}-arm64.dmg`,
@@ -262,6 +264,15 @@ async function main() {
       key: `v${version}/Sapira-Media-Player-Portable-${version}-x64.exe`,
       type: 'application/vnd.microsoft.portable-executable',
     },
+    ...(fs.existsSync(`release/Sapira-Media-Player-Full-${version}-android.apk`)
+      ? [
+          {
+            local: `release/Sapira-Media-Player-Full-${version}-android.apk`,
+            key: `v${version}/Sapira-Media-Player-Full-${version}-android.apk`,
+            type: 'application/vnd.android.package-archive',
+          },
+        ]
+      : []),
     ...(fs.existsSync('release/SHA256SUMS.txt')
       ? [
           {
@@ -272,6 +283,10 @@ async function main() {
         ]
       : []),
   ];
+
+  const files = onlyAndroid
+    ? allFiles.filter((f) => f.local.endsWith('.apk') || f.local.endsWith('SHA256SUMS.txt'))
+    : allFiles;
 
   console.log('Provisioning temporary R2 multipart edge uploader...');
   const workerUrl = await deployTempUploaderWorker(token, oneTimeSecret);

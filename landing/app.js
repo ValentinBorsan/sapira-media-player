@@ -12,6 +12,7 @@ const RELEASE_CONFIG = {
     macX64: 'Sapira-Media-Player-0.1.0-x64.dmg',
     winSetup: 'Sapira-Media-Player-Setup-0.1.0-x64.exe',
     winPortable: 'Sapira-Media-Player-Portable-0.1.0-x64.exe',
+    androidFull: 'Sapira-Media-Player-Full-0.1.0-android.apk',
   },
 };
 
@@ -19,43 +20,35 @@ const I18N = {
   ro: {
     navPreview: 'Interfață',
     navFeatures: 'Funcții',
-    navShortcuts: 'Scurtături',
     navDownload: 'Descărcare',
-    heroBadge: `v${RELEASE_CONFIG.version} · Open-Source MIT · Motor Electron 45`,
-    heroTitleLead: 'Sunet pur.',
-    heroTitleHighlight: 'Cinema 4K.',
-    heroSubtitle:
-      'Player desktop open-source pentru macOS și Windows. Zero telemetrie.',
+    heroTitleLead: "Filme și muzică.",
+    heroTitleHighlight: "În ritmul tău.",
+    heroSubtitle: "Redă filme, muzică fără pierderi și streamuri live pe macOS, Windows și Android.",
     ctaDownloadDefault: 'Descarcă Sapira',
-    ctaDownloadMac: 'Descarcă pentru macOS',
+    ctaDownloadMac: 'Alege versiunea macOS',
     ctaDownloadWin: 'Descarcă pentru Windows',
-    ctaAllPlatforms: 'macOS & Windows ↓',
-    chipZeroAds: '0% Reclamă · 0% Telemetrie',
+    ctaDownloadAndroid: 'Descarcă pentru Android (.apk)',
+    ctaPreview: "Explorează interfața",
+    checksumsLabel: "Sume de control SHA-256",
+    privacyPolicy: "Confidențialitate și semnarea codului",
     modeAudio: 'Audio Core & Versuri',
     modeCinema: 'Cinema 4K & Ambilight',
     modeRadio: 'YouTube & 30k+ Radio',
     themeHint: 'Schimbă tema din colțul dreapta-sus pentru a testa culorile Prism HUD',
     mockSubtitle: '„Dincolo de orbită, lumina prismei deschide ultimul portal.”',
     dockPalette: 'Command Palette',
-    featuresEyebrow: 'ARHITECTURĂ DESKTOP COMPLETĂ',
-    featuresTitle: 'Construit pentru fiecare format, de la vinil digital la cinema 4K.',
-    feat1Title: 'Motor Universal de Codecuri & FFmpeg',
-    feat1Desc:
-      'Protocol nativ sapira-media:// cu streaming HTTP 206 Range instantaneu pe fișiere mari, completat de remuxare fără pierderi și transcodare automată FFmpeg pentru MKV, AVI, WMV, FLV, TS, HEVC, AC3, DTS, FLAC, WAV și ALAC.',
-    feat2Title: 'GPU Ambilight & Cinema Pro',
-    feat2Desc:
-      'Halou ambiental în timp real în jurul cadrului video, reglaje live de imagine (luminozitate, contrast, saturație, zoom 2×, rotație 90°, oglindire), pas-cu-pas pe cadru, capitole pe timeline și subtitrări .srt/.ass/.vtt.',
-    feat3Title: 'Sanctuar Audio & Versuri .LRC',
-    feat3Desc:
-      'Spectru radial Web Audio sincronizat cu muzica, versuri locale .lrc sau căutate automat online prin LRCLIB, egalizator grafic pe 5 benzi, amplificare volum până la 200% și Sleep Timer cu fade-out lin de 10 secunde.',
-    feat4Title: 'YouTube, SoundCloud & 30.000+ Posturi Radio',
-    feat4Desc:
-      'Redă streamuri HLS (.m3u8), extrage direct linkuri YouTube, Twitch, SoundCloud sau Vimeo prin yt-dlp (inclusiv remux 1080p DASH) și explorează instantaneu posturi radio românești și internaționale.',
-    feat5Title: 'Command Palette, Mini-Player & Securitate Sandboxed',
-    feat5Desc:
-      'Controlează totul instantaneu din tastatură (Cmd/Ctrl + K), comută în Mini-Player flotant (W), salvează playlisturi .m3u și alege dintre 5 teme optice și interfață live Română / Engleză — totul izolat în Electron 45 Sandbox.',
-    shortcutsEyebrow: 'VITEZĂ FĂRĂ MOUSE',
-    shortcutsTitle: 'Comenzi rapide gândite pentru flux continuu',
+    featuresTitle: "Pentru felul în care privești și asculți.",
+    feat1Title: "Formatele tale, într-un singur player",
+    feat1Desc: "Redă MKV, MP4, FLAC și alte formate. FFmpeg extinde compatibilitatea cu formate video și audio mai vechi.",
+    feat2Title: "Cinema cu Ambilight",
+    feat2Desc: "Lumina ambientală urmărește imaginea. Ajustează cadrul și navighează cu subtitrări, capitole și avans cadru cu cadru.",
+    feat3Title: "Sunet și versuri sincronizate",
+    feat3Desc: "Reglează sunetul cu egalizatorul pe cinci benzi. Urmărește versurile pe măsură ce rulează piesa.",
+    feat4Title: "Streamuri și radio live",
+    feat4Desc: "Deschide streamuri HLS, descoperă posturi de radio sau folosește yt-dlp pentru linkuri YouTube și SoundCloud.",
+    feat5Title: "Control rapid",
+    feat5Desc: "Deschide paleta de comenzi din tastatură, folosește mini-playerul și organizează fișierele în playlisturi M3U.",
+    shortcutsTitle: "Scurtături desktop",
     scPlay: 'Redare / Pauză',
     scPalette: 'Command Palette',
     scStream: 'Stream / YouTube / Radio',
@@ -68,55 +61,66 @@ const I18N = {
     scRotate: 'Rotește video 90°',
     scPip: 'Picture-in-Picture / Captură',
     scVol: 'Volum până la 200% Boost',
-    downloadEyebrow: 'DESCĂRCARE GRATUITĂ · OPEN SOURCE',
-    downloadTitle: 'Alege ediția pentru sistemul tău',
-    downloadSub: 'Pachete native compilate pe Electron 45. Fără cont, fără abonament, fără telemetrie.',
+    downloadTitle: "Descarcă Sapira",
+    downloadSub: "Alege versiunea pentru macOS, Windows sau Android.",
     macDesc: 'Optimizat nativ pentru Apple Silicon (M1–M4) și procesoare Intel.',
     macGatekeeperNote: 'Prima rulare pe macOS (build open-source nesemnat Apple):',
     winDesc: 'Instalator complet cu asocieri de fișiere sau versiune portabilă fără instalare.',
     optionalToolsNote: 'Opțional (pentru linkuri YouTube & transcodare AC3/DTS):',
+    androidDesc: 'APK nativ Kotlin + Media3 cu redare în fundal, MKV/FLAC și YouTube 1080p fără reclame.',
+    androidFullBtn: 'Sapira Full (.apk)',
+    androidFullSub: 'ARM64 / Universal · YouTube 1080p & Fundal',
+    androidPlayBtn: 'Google Play Store',
+    androidPlaySub: 'În curând · Ediția oficială Play',
+    androidInstallNote: 'APK semnat RSA-4096 · Poți trimite linkuri direct prin Share din YouTube către Sapira Full.',
     footerLicense: 'Licență MIT Open-Source',
+    navAndroid: "Android",
+    skipLink: "Sari la conținut",
+    heroKicker: "PLAYER MEDIA OPEN-SOURCE",
+    heroNote: "Gratuit sub licența MIT. Fără cont sau telemetrie.",
+    previewTitle: "Descoperă playerul.",
+    previewIntro: "Explorează interfața desktop în această demonstrație interactivă.",
+    showShortcuts: "Vezi comenzile rapide",
+    androidTitle: "Sapira pe Android.",
+    androidIntro: "Ia biblioteca cu tine. Reia un film de unde ai rămas, folosește gesturile în ecran complet sau ascultă cu ecranul blocat.",
+    androidSource: "Explorează proiectul Android",
+    installHelp: "Note de instalare",
+    copy: "Copiază",
+    copied: "Copiat!",
+    copyFailed: "Copiază manual",
   },
   en: {
     navPreview: 'Interface',
     navFeatures: 'Features',
-    navShortcuts: 'Shortcuts',
     navDownload: 'Download',
-    heroBadge: `v${RELEASE_CONFIG.version} · Open-Source MIT · Electron 45 Engine`,
-    heroTitleLead: 'Pure sound.',
-    heroTitleHighlight: '4K cinema.',
-    heroSubtitle:
-      'Minimalist open-source player for macOS and Windows. Zero telemetry.',
+    heroTitleLead: "Your media.",
+    heroTitleHighlight: "In its element.",
+    heroSubtitle: "An open-source player for films, lossless music and live streams on macOS, Windows and Android.",
     ctaDownloadDefault: 'Download Sapira',
-    ctaDownloadMac: 'Download for macOS',
+    ctaDownloadMac: 'Choose macOS build',
     ctaDownloadWin: 'Download for Windows',
-    ctaAllPlatforms: 'macOS & Windows ↓',
-    chipZeroAds: '0% Ads · 0% Telemetry',
+    ctaDownloadAndroid: 'Download for Android (.apk)',
+    ctaPreview: "Explore the interface",
+    checksumsLabel: "SHA-256 checksums",
+    privacyPolicy: "Privacy & Code Signing Policy",
     modeAudio: 'Audio Core & Lyrics',
     modeCinema: '4K Cinema & Ambilight',
     modeRadio: 'YouTube & 30k+ Radio',
     themeHint: 'Switch themes in the top-right bar to preview live Prism HUD palettes',
     mockSubtitle: '“Beyond the orbit, prism light unlocks the final horizon.”',
     dockPalette: 'Command Palette',
-    featuresEyebrow: 'COMPLETE DESKTOP ARCHITECTURE',
-    featuresTitle: 'Engineered for every format, from lossless audio to 4K cinema.',
-    feat1Title: 'Universal Codec & FFmpeg Engine',
-    feat1Desc:
-      'Custom sapira-media:// HTTP 206 Range streaming for instant seeking on multi-GB files, backed by automatic lossless remuxing and FFmpeg transcoding for MKV, AVI, WMV, FLV, TS, HEVC, AC3, DTS, FLAC, WAV, and ALAC.',
-    feat2Title: 'GPU Ambilight & Cinema Pro',
-    feat2Desc:
-      'Real-time ambient canvas glow around video frames, live image adjustments (brightness, contrast, saturation, 2× zoom, 90° rotation, mirror), frame-by-frame stepping, timeline chapters, and .srt/.ass/.vtt subtitles.',
-    feat3Title: 'Audio Sanctuary & Synced Lyrics',
-    feat3Desc:
-      'Music-reactive Web Audio radial spectrum, sidecar .lrc or automatic online LRCLIB synced lyrics, 5-band graphic equalizer, up to 200% preamp volume boost, and Sleep Timer with a gentle 10-second fade-out.',
-    feat4Title: 'YouTube, SoundCloud & 30,000+ Radio Stations',
-    feat4Desc:
-      'Play direct HLS (.m3u8) streams, extract YouTube, Twitch, SoundCloud, or Vimeo streams via yt-dlp (including 1080p DASH muxing), and browse Romanian & global live radio stations with one click.',
-    feat5Title: 'Command Palette, Mini-Player & Sandboxed Security',
-    feat5Desc:
-      'Control everything from the keyboard (Cmd/Ctrl + K), pop into the floating Mini-Player (W), manage .m3u playlists, and switch between 5 optical themes and live English / Romanian UI inside a hardened Electron 45 Sandbox.',
-    shortcutsEyebrow: 'KEYBOARD-FIRST SPEED',
-    shortcutsTitle: 'Precision shortcuts built for uninterrupted flow',
+    featuresTitle: "Made for the way you watch and listen.",
+    feat1Title: "Your formats, one player",
+    feat1Desc: "Play MKV, MP4, FLAC and more. FFmpeg extends compatibility with legacy video and audio formats.",
+    feat2Title: "Cinema with Ambilight",
+    feat2Desc: "Ambient light follows the picture. Adjust the frame and explore films with subtitles, chapters and frame-by-frame playback.",
+    feat3Title: "Sound and synced lyrics",
+    feat3Desc: "Fine-tune your sound with the five-band equalizer. Follow the lyrics as the song plays.",
+    feat4Title: "Streams and live radio",
+    feat4Desc: "Open HLS streams, discover radio stations or use yt-dlp with YouTube and SoundCloud links.",
+    feat5Title: "Keep playback within reach",
+    feat5Desc: "Open the command palette from your keyboard, switch to the mini-player and organize files in M3U playlists.",
+    shortcutsTitle: "Desktop shortcuts",
     scPlay: 'Play / Pause',
     scPalette: 'Command Palette',
     scStream: 'Stream / YouTube / Radio',
@@ -129,14 +133,33 @@ const I18N = {
     scRotate: 'Rotate Video 90°',
     scPip: 'Picture-in-Picture / Screenshot',
     scVol: 'Volume up to 200% Boost',
-    downloadEyebrow: 'FREE DOWNLOAD · OPEN SOURCE',
-    downloadTitle: 'Choose the build for your platform',
-    downloadSub: 'Native installers built on Electron 45. No account, no subscription, zero telemetry.',
+    downloadTitle: "Download Sapira",
+    downloadSub: "Choose the build for macOS, Windows, or Android.",
     macDesc: 'Natively compiled for Apple Silicon (M1–M4) and Intel Macs.',
     macGatekeeperNote: 'First launch on macOS (unsigned open-source build):',
     winDesc: 'Full NSIS setup installer with file associations or zero-install portable executable.',
     optionalToolsNote: 'Optional power tools (for YouTube links & AC3/DTS remux):',
+    androidDesc: 'Native Kotlin + Media3 APK with background play, MKV/FLAC and ad-free 1080p YouTube.',
+    androidFullBtn: 'Sapira Full (.apk)',
+    androidFullSub: 'ARM64 / Universal · YouTube 1080p & Background',
+    androidPlayBtn: 'Google Play Store',
+    androidPlaySub: 'Coming soon · Official Play edition',
+    androidInstallNote: 'Signed RSA-4096 release APK · Share links directly from YouTube to Sapira Full.',
     footerLicense: 'MIT Open-Source License',
+    navAndroid: "Android",
+    skipLink: "Skip to content",
+    heroKicker: "OPEN-SOURCE MEDIA PLAYER",
+    heroNote: "Free under the MIT license. No account or telemetry.",
+    previewTitle: "Meet the player.",
+    previewIntro: "Explore the desktop interface in this interactive preview.",
+    showShortcuts: "View keyboard shortcuts",
+    androidTitle: "Sapira on Android.",
+    androidIntro: "Play your library on the go. Resume a film where you left off, use fullscreen gestures, or keep listening with the screen locked.",
+    androidSource: "Explore the Android project",
+    installHelp: "Installation notes",
+    copy: "Copy",
+    copied: "Copied!",
+    copyFailed: "Copy manually",
   },
 };
 
@@ -151,10 +174,13 @@ const THEME_COLORS = {
 (function initSapiraLanding() {
   let currentLang = (localStorage.getItem('sapira.landing.lang') || 'en') === 'ro' ? 'ro' : 'en';
   let currentTheme = localStorage.getItem('sapira.landing.theme') || 'sapphire';
-  let previewPlaying = true;
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+  let previewPlaying = !reducedMotion.matches;
 
   const detectedOs = (() => {
     const ua = navigator.userAgent.toLowerCase();
+    if (ua.includes('android')) return 'android';
+    if (/iphone|ipad|ipod/.test(ua)) return 'other';
     if (ua.includes('win')) return 'windows';
     if (ua.includes('mac')) return 'mac';
     return 'other';
@@ -166,7 +192,9 @@ const THEME_COLORS = {
     document.documentElement.setAttribute('data-theme', theme);
     localStorage.setItem('sapira.landing.theme', theme);
     document.querySelectorAll('.theme-dot').forEach((btn) => {
-      btn.classList.toggle('active', btn.getAttribute('data-set-theme') === theme);
+      const active = btn.getAttribute('data-set-theme') === theme;
+      btn.classList.toggle('active', active);
+      btn.setAttribute('aria-pressed', String(active));
     });
   }
 
@@ -187,6 +215,7 @@ const THEME_COLORS = {
     if (primaryLabel) {
       if (detectedOs === 'mac') primaryLabel.textContent = dict.ctaDownloadMac;
       else if (detectedOs === 'windows') primaryLabel.textContent = dict.ctaDownloadWin;
+      else if (detectedOs === 'android') primaryLabel.textContent = dict.ctaDownloadAndroid;
       else primaryLabel.textContent = dict.ctaDownloadDefault;
     }
 
@@ -211,19 +240,26 @@ const THEME_COLORS = {
     const macX64 = document.getElementById('dl-mac-x64');
     const winSetup = document.getElementById('dl-win-setup');
     const winPort = document.getElementById('dl-win-portable');
+    const androidFull = document.getElementById('dl-android-full');
+    const androidHero = document.getElementById('dl-android-hero');
     const primaryCta = document.getElementById('primary-download-btn');
 
     if (macArm) macArm.href = buildUrl(RELEASE_CONFIG.files.macArm64);
     if (macX64) macX64.href = buildUrl(RELEASE_CONFIG.files.macX64);
     if (winSetup) winSetup.href = buildUrl(RELEASE_CONFIG.files.winSetup);
     if (winPort) winPort.href = buildUrl(RELEASE_CONFIG.files.winPortable);
+    if (androidFull) androidFull.href = buildUrl(RELEASE_CONFIG.files.androidFull);
+    if (androidHero) androidHero.href = buildUrl(RELEASE_CONFIG.files.androidFull);
 
     if (detectedOs === 'mac') {
       document.getElementById('card-mac')?.classList.add('recommended');
-      if (primaryCta) primaryCta.href = base || ghBase ? buildUrl(RELEASE_CONFIG.files.macArm64) : '#card-mac';
+      if (primaryCta) primaryCta.href = '#card-mac';
     } else if (detectedOs === 'windows') {
       document.getElementById('card-win')?.classList.add('recommended');
       if (primaryCta) primaryCta.href = base || ghBase ? buildUrl(RELEASE_CONFIG.files.winSetup) : '#card-win';
+    } else if (detectedOs === 'android') {
+      document.getElementById('card-android')?.classList.add('recommended');
+      if (primaryCta) primaryCta.href = base || ghBase ? buildUrl(RELEASE_CONFIG.files.androidFull) : '#card-android';
     }
 
     if (ghBase) {
@@ -253,7 +289,6 @@ const THEME_COLORS = {
             if (setupUrl && winSetup) winSetup.href = setupUrl;
             if (portUrl && winPort) winPort.href = portUrl;
             if (primaryCta) {
-              if (detectedOs === 'mac' && armUrl) primaryCta.href = armUrl;
               if (detectedOs === 'windows' && setupUrl) primaryCta.href = setupUrl;
             }
           })
@@ -277,16 +312,32 @@ const THEME_COLORS = {
   // Showcase mode tabs
   const codecBadge = document.getElementById('mock-codec-badge');
   const ambilightHalo = document.getElementById('ambilight-halo');
-  document.querySelectorAll('.mode-tab').forEach((tab) => {
+  const modeTabs = [...document.querySelectorAll('.mode-tab')];
+  modeTabs.forEach((tab, index) => {
+    tab.addEventListener('keydown', (event) => {
+      const target = {
+        ArrowLeft: (index - 1 + modeTabs.length) % modeTabs.length,
+        ArrowRight: (index + 1) % modeTabs.length,
+        Home: 0,
+        End: modeTabs.length - 1,
+      }[event.key];
+      if (target === undefined) return;
+      event.preventDefault();
+      modeTabs[target].focus();
+      modeTabs[target].click();
+    });
     tab.addEventListener('click', () => {
       const mode = tab.getAttribute('data-mode');
-      document.querySelectorAll('.mode-tab').forEach((t) => {
+      modeTabs.forEach((t) => {
         const active = t === tab;
         t.classList.toggle('active', active);
         t.setAttribute('aria-selected', String(active));
+        t.tabIndex = active ? 0 : -1;
       });
       document.querySelectorAll('.stage-panel').forEach((panel) => {
-        panel.classList.toggle('active', panel.getAttribute('data-panel') === mode);
+        const active = panel.getAttribute('data-panel') === mode;
+        panel.classList.toggle('active', active);
+        panel.hidden = !active;
       });
       if (codecBadge) {
         codecBadge.textContent =
@@ -304,9 +355,15 @@ const THEME_COLORS = {
 
   // Play / Pause animation toggle
   const playBtn = document.getElementById('mock-play-btn');
+  function updatePreviewButton() {
+    if (!playBtn) return;
+    playBtn.textContent = previewPlaying ? '❚❚' : '▶';
+    playBtn.setAttribute('aria-pressed', String(previewPlaying));
+  }
+  updatePreviewButton();
   playBtn?.addEventListener('click', () => {
     previewPlaying = !previewPlaying;
-    playBtn.textContent = previewPlaying ? '❚❚' : '▶';
+    updatePreviewButton();
   });
 
   // Copy CLI helper buttons
@@ -316,14 +373,11 @@ const THEME_COLORS = {
       if (!cmd) return;
       try {
         await navigator.clipboard.writeText(cmd);
-        const prev = btn.textContent;
-        btn.textContent = 'Copied!';
-        setTimeout(() => {
-          btn.textContent = prev;
-        }, 1400);
+        btn.textContent = I18N[currentLang].copied;
       } catch {
-        // Ignore clipboard errors
+        btn.textContent = I18N[currentLang].copyFailed;
       }
+      setTimeout(() => { btn.textContent = I18N[currentLang].copy; }, 1400);
     });
   });
 
