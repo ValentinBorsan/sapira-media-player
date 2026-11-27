@@ -23,6 +23,7 @@ data class SapiraTrack(
     val isRemote: Boolean = false,
     val secondaryAudioUrl: String? = null,
     val mimeType: String? = null,
+    val dashManifestXml: String? = null,
     val sourceUrl: String? = null
 )
 
@@ -91,6 +92,7 @@ data class SapiraStrings(
     val resumePlayback: String,
     val startOver: String,
     val trackPicker: String,
+    val videoQuality: String,
     val audioTracks: String,
     val subtitleTracks: String,
     val automaticTrack: String,
@@ -155,7 +157,8 @@ object SapiraI18n {
         subtitleDelay = "Subtitle delay",
         resumePlayback = "Resume playback",
         startOver = "Start over",
-        trackPicker = "Audio & subtitles",
+        trackPicker = "Quality, audio & subtitles",
+        videoQuality = "Video quality",
         audioTracks = "Audio tracks",
         subtitleTracks = "Subtitles",
         automaticTrack = "Automatic",
@@ -219,7 +222,8 @@ object SapiraI18n {
         subtitleDelay = "Decalaj subtitrare",
         resumePlayback = "Continuă redarea",
         startOver = "Pornește de la început",
-        trackPicker = "Audio și subtitrări",
+        trackPicker = "Calitate, audio și subtitrări",
+        videoQuality = "Calitate video",
         audioTracks = "Piste audio",
         subtitleTracks = "Subtitrări",
         automaticTrack = "Automat",

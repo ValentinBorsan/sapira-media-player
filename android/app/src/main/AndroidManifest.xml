@@ -10,6 +10,7 @@
 
     <!-- Network streams (HLS / Radio) & optional user-triggered LRCLIB lyrics lookup -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
     <!-- Background audio playback & lock-screen MediaSession controls -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />

@@ -379,6 +379,7 @@ class SapiraViewModel(application: Application) : AndroidViewModel(application) 
                             isRemote = true,
                             secondaryAudioUrl = yt.audioUrl,
                             mimeType = yt.mimeType,
+                            dashManifestXml = yt.dashManifestXml,
                             sourceUrl = YouTubeLinks.canonicalWatchUrl(yt.videoId)
                         )
                         _uiState.update { it.copy(isResolvingStream = false, streamError = null) }
@@ -774,9 +775,14 @@ class SapiraViewModel(application: Application) : AndroidViewModel(application) 
         if (!mimeType.isNullOrBlank()) {
             builder.setMimeType(mimeType)
         }
-        if (!secondaryAudioUrl.isNullOrBlank()) {
+        if (!secondaryAudioUrl.isNullOrBlank() || !dashManifestXml.isNullOrBlank()) {
             val extras = Bundle().apply {
-                putString(SapiraMediaSourceFactory.EXTRA_AUDIO_URL, secondaryAudioUrl)
+                if (!secondaryAudioUrl.isNullOrBlank()) {
+                    putString(SapiraMediaSourceFactory.EXTRA_AUDIO_URL, secondaryAudioUrl)
+                }
+                if (!dashManifestXml.isNullOrBlank()) {
+                    putString(SapiraMediaSourceFactory.EXTRA_DASH_MPD, dashManifestXml)
+                }
             }
             builder.setRequestMetadata(
                 MediaItem.RequestMetadata.Builder()

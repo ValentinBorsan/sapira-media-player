@@ -15,7 +15,9 @@ data class ResolvedYouTubeStream(
     val audioUrl: String?,
     val mimeType: String?,
     val height: Int,
-    val isLive: Boolean
+    val isLive: Boolean,
+    /** Multi-resolution MPEG-DASH MPD XML for instant adaptive playback without startup freeze. */
+    val dashManifestXml: String? = null
 )
 
 object YouTubeLinks {

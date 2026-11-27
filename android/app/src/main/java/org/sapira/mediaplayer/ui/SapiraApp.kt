@@ -964,9 +964,37 @@ private fun VideoTrackPicker(
     onPickFile: () -> Unit,
     onDismiss: () -> Unit
 ) {
+    val videoGroups = state.tracks.groups.filter { it.type == C.TRACK_TYPE_VIDEO && it.length > 0 }
     val sections = listOf(C.TRACK_TYPE_AUDIO to strings.audioTracks, C.TRACK_TYPE_TEXT to strings.subtitleTracks)
     ModalBottomSheet(onDismissRequest = onDismiss) {
         LazyColumn(contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp)) {
+            if (videoGroups.isNotEmpty() && videoGroups.sumOf { it.length } > 1) {
+                item {
+                    Text(strings.videoQuality, fontWeight = FontWeight.SemiBold)
+                    TextButton(onClick = { onSelect(C.TRACK_TYPE_VIDEO, null, 0, false) }) {
+                        Text(strings.automaticTrack)
+                    }
+                }
+                videoGroups.forEach { group ->
+                    val supportedIndices = (0 until group.length)
+                        .filter { group.isTrackSupported(it) }
+                        .sortedByDescending { group.getTrackFormat(it).height }
+                    items(supportedIndices.size) { pos ->
+                        val index = supportedIndices[pos]
+                        val format = group.getTrackFormat(index)
+                        val fpsSuffix = if (format.frameRate > 45f) "${format.frameRate.toInt()}" else ""
+                        val label = if (format.height > 0) {
+                            "${format.height}p$fpsSuffix"
+                        } else {
+                            format.label ?: "${strings.videoQuality} · ${index + 1}"
+                        }
+                        val selected = group.isTrackSelected(index)
+                        TextButton(onClick = { onSelect(C.TRACK_TYPE_VIDEO, group, index, false) }) {
+                            Text(if (selected) "✓ $label" else label)
+                        }
+                    }
+                }
+            }
             sections.forEach { (type, title) ->
                 item {
                     Text(title, fontWeight = FontWeight.SemiBold)
