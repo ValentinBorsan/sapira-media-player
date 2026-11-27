@@ -4,17 +4,25 @@ import android.app.Application
 import android.content.ComponentName
 import android.content.Context
 import android.net.Uri
+import android.os.Bundle
+import android.provider.OpenableColumns
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.media3.common.C
+import androidx.media3.common.Tracks
+import androidx.media3.common.TrackSelectionOverride
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
+import androidx.media3.common.MimeTypes
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import com.google.common.util.concurrent.ListenableFuture
 import com.google.common.util.concurrent.MoreExecutors
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -23,6 +31,11 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import org.sapira.mediaplayer.data.MediaRepository
+import org.sapira.mediaplayer.data.PlaylistStore
+import org.sapira.mediaplayer.data.SavedPlaylist
+import org.sapira.mediaplayer.data.SubtitleTiming
+import java.io.File
+import java.util.UUID
 import org.sapira.mediaplayer.model.EqPreset
 import org.sapira.mediaplayer.model.LyricLine
 import org.sapira.mediaplayer.model.MediaKind
@@ -32,12 +45,18 @@ import org.sapira.mediaplayer.model.SapiraTrack
 import org.sapira.mediaplayer.model.SleepTimerOption
 import org.sapira.mediaplayer.model.VideoAspectMode
 import org.sapira.mediaplayer.service.AudioFxEngine
+import org.sapira.mediaplayer.service.SapiraMediaSourceFactory
 import org.sapira.mediaplayer.service.SapiraPlaybackService
+import org.sapira.mediaplayer.youtube.YouTubeLinks
+import org.sapira.mediaplayer.youtube.YouTubeSupport
+
+data class ResumePrompt(val title: String, val positionMs: Long)
 
 data class SapiraUiState(
     val library: List<SapiraTrack> = emptyList(),
     val isScanningLibrary: Boolean = false,
     val queue: List<SapiraTrack> = emptyList(),
+    val playlists: List<SavedPlaylist> = emptyList(),
     val currentIndex: Int = -1,
     val isPlaying: Boolean = false,
     val positionMs: Long = 0L,
@@ -45,6 +64,11 @@ data class SapiraUiState(
     val shuffle: Boolean = false,
     val repeatMode: Int = Player.REPEAT_MODE_OFF,
     val playbackSpeed: Float = 1.0f,
+    val tracks: Tracks = Tracks.EMPTY,
+    val subtitlesEnabled: Boolean = true,
+    val invalidSubtitleFile: Boolean = false,
+    val subtitleOffsetMs: Long? = null,
+    val resumePrompt: ResumePrompt? = null,
     val lyricsOpen: Boolean = false,
     val lyricsLoading: Boolean = false,
     val lyricLines: List<LyricLine> = emptyList(),
@@ -56,6 +80,9 @@ data class SapiraUiState(
     val sleepOption: SleepTimerOption = SleepTimerOption.OFF,
     val sleepRemainingSec: Long? = null,
     val aspectMode: VideoAspectMode = VideoAspectMode.FIT,
+    val embeddedYouTubeId: String? = null,
+    val isResolvingStream: Boolean = false,
+    val streamError: String? = null,
     val theme: SapiraTheme = SapiraTheme.SAPPHIRE,
     val language: SapiraLanguage = SapiraLanguage.EN
 ) {
@@ -81,8 +108,19 @@ class SapiraViewModel(application: Application) : AndroidViewModel(application) 
 
     private val prefs = application.getSharedPreferences("sapira_prefs", Context.MODE_PRIVATE)
 
+    private val positions = application.getSharedPreferences("sapira_positions", Context.MODE_PRIVATE)
+
+    private fun resumePosition(track: SapiraTrack): Long {
+        if (track.isRemote) return 0L
+        val saved = positions.getLong(track.uri.toString(), 0L)
+        return saved.takeIf { track.durationMs <= 0L || it < track.durationMs - 5_000L } ?: 0L
+    }
+
+    private val playlistStore = PlaylistStore(prefs)
+
     private val _uiState = MutableStateFlow(
         SapiraUiState(
+            playlists = playlistStore.load(),
             theme = SapiraTheme.fromId(prefs.getString("theme", SapiraTheme.SAPPHIRE.id)),
             language = SapiraLanguage.fromCode(prefs.getString("lang", SapiraLanguage.EN.code)),
             eqPreset = EqPreset.fromId(prefs.getString("eq_preset", EqPreset.FLAT.id)),
@@ -91,6 +129,12 @@ class SapiraViewModel(application: Application) : AndroidViewModel(application) 
         )
     )
     val uiState: StateFlow<SapiraUiState> = _uiState.asStateFlow()
+
+    private data class ExternalSubtitle(val trackId: String, val uri: Uri, val name: String, val mimeType: String)
+    private var externalSubtitle: ExternalSubtitle? = null
+    private var subtitleJob: Job? = null
+
+    private var pendingPlayback: ((Long) -> Unit)? = null
 
     private var controllerFuture: ListenableFuture<MediaController>? = null
     var mediaController: MediaController? = null
@@ -115,7 +159,16 @@ class SapiraViewModel(application: Application) : AndroidViewModel(application) 
         future.addListener({
             val controller = runCatching { future.get() }.getOrNull() ?: return@addListener
             mediaController = controller
+            _uiState.update { it.copy(tracks = controller.currentTracks) }
             controller.addListener(object : Player.Listener {
+                override fun onTracksChanged(tracks: Tracks) {
+                    _uiState.update { it.copy(tracks = tracks) }
+                }
+
+                override fun onTrackSelectionParametersChanged(parameters: androidx.media3.common.TrackSelectionParameters) {
+                    _uiState.update { it.copy(subtitlesEnabled = C.TRACK_TYPE_TEXT !in parameters.disabledTrackTypes) }
+                }
+
                 override fun onIsPlayingChanged(isPlaying: Boolean) {
                     _uiState.update { it.copy(isPlaying = isPlaying) }
                     if (isPlaying) startPositionTicker() else stopPositionTicker()
@@ -131,6 +184,7 @@ class SapiraViewModel(application: Application) : AndroidViewModel(application) 
                     _uiState.update {
                         it.copy(
                             currentIndex = idx,
+                            subtitleOffsetMs = if (mediaItem?.mediaId == externalSubtitle?.trackId) it.subtitleOffsetMs else null,
                             positionMs = controller.currentPosition.coerceAtLeast(0L),
                             durationMs = dur,
                             lyricLines = emptyList(),
@@ -197,20 +251,60 @@ class SapiraViewModel(application: Application) : AndroidViewModel(application) 
     fun playTracks(tracks: List<SapiraTrack>, startIndex: Int = 0) {
         if (tracks.isEmpty()) return
         val safeStart = startIndex.coerceIn(0, tracks.lastIndex)
+        requestPlayback(tracks[safeStart]) { position -> playTracksAt(tracks, safeStart, position) }
+    }
+
+    private fun requestPlayback(track: SapiraTrack, play: (Long) -> Unit) {
+        val saved = resumePosition(track)
+        if (saved > 0L) {
+            pendingPlayback = play
+            _uiState.update { it.copy(resumePrompt = ResumePrompt(track.title, saved)) }
+        } else {
+            resolveResumePrompt(null)
+            play(0L)
+        }
+    }
+
+    fun resolveResumePrompt(resume: Boolean?) {
+        val position = _uiState.value.resumePrompt?.positionMs ?: 0L
+        val play = pendingPlayback
+        pendingPlayback = null
+        _uiState.update { it.copy(resumePrompt = null) }
+        if (resume != null) play?.invoke(if (resume) position else 0L)
+    }
+
+    private var streamResolveJob: Job? = null
+    private val firstUrlRegex = Regex("""https?://\S+""", RegexOption.IGNORE_CASE)
+
+    private fun playTracksAt(tracks: List<SapiraTrack>, safeStart: Int, position: Long) {
+        val target = tracks[safeStart]
+        // Re-resolve saved YouTube playlist items whose direct media URL was not persisted
+        if (target.sourceUrl != null &&
+            target.uri.toString() == target.sourceUrl &&
+            YouTubeLinks.isYouTubeUrl(target.sourceUrl)
+        ) {
+            openNetworkStream(target.sourceUrl, audioOnly = target.kind == MediaKind.AUDIO)
+            return
+        }
+
         _uiState.update {
             it.copy(
                 queue = tracks,
                 currentIndex = safeStart,
-                positionMs = 0L,
-                durationMs = tracks[safeStart].durationMs,
+                embeddedYouTubeId = null,
+                subtitleOffsetMs = null,
+                positionMs = position,
+                durationMs = target.durationMs,
                 lyricLines = emptyList(),
                 lyricsSynced = false,
                 lyricsSource = null
             )
         }
+        externalSubtitle = null
+        subtitleJob?.cancel()
         val items = tracks.map { it.toMediaItem() }
         mediaController?.apply {
-            setMediaItems(items, safeStart, 0L)
+            setMediaItems(items, safeStart, position)
             prepare()
             play()
         }
@@ -230,21 +324,140 @@ class SapiraViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
-    fun openNetworkStream(rawUrl: String): Boolean {
-        val track = MediaRepository.trackFromStreamUrl(rawUrl) ?: return false
+    fun openNetworkStream(
+        rawInput: String,
+        audioOnly: Boolean = false,
+        onSuccess: () -> Unit = {}
+    ) {
+        val extractedUrl = firstUrlRegex.find(rawInput.trim())?.value ?: rawInput.trim()
+        if (extractedUrl.isBlank()) {
+            _uiState.update { it.copy(streamError = "invalid") }
+            return
+        }
+
+        if (YouTubeLinks.isYouTubeUrl(extractedUrl)) {
+            if (!YouTubeSupport.NATIVE_PLAYBACK) {
+                val videoId = YouTubeLinks.extractVideoId(extractedUrl)
+                if (videoId == null) {
+                    _uiState.update { it.copy(streamError = "invalid") }
+                    return
+                }
+                mediaController?.pause()
+                _uiState.update {
+                    it.copy(
+                        embeddedYouTubeId = videoId,
+                        isResolvingStream = false,
+                        streamError = null
+                    )
+                }
+                onSuccess()
+                return
+            }
+
+            streamResolveJob?.cancel()
+            _uiState.update { it.copy(isResolvingStream = true, streamError = null) }
+            val wantAudio = audioOnly || YouTubeLinks.isMusicUrl(extractedUrl)
+            streamResolveJob = viewModelScope.launch {
+                val resolved = YouTubeSupport.resolve(extractedUrl, audioOnly = wantAudio)
+                resolved.fold(
+                    onSuccess = { yt ->
+                        val badge = when {
+                            wantAudio -> "YT AUDIO"
+                            yt.isLive -> "YT LIVE"
+                            yt.height > 0 -> "YT ${yt.height}P"
+                            else -> "YOUTUBE"
+                        }
+                        val track = SapiraTrack(
+                            id = "yt-${yt.videoId}-${if (wantAudio) "a" else "v"}",
+                            uri = Uri.parse(yt.mediaUrl),
+                            title = yt.title,
+                            artist = yt.author,
+                            durationMs = yt.durationMs,
+                            ext = badge,
+                            kind = if (wantAudio) MediaKind.AUDIO else MediaKind.VIDEO,
+                            artworkUri = yt.thumbnailUrl?.let(Uri::parse),
+                            isRemote = true,
+                            secondaryAudioUrl = yt.audioUrl,
+                            mimeType = yt.mimeType,
+                            sourceUrl = YouTubeLinks.canonicalWatchUrl(yt.videoId)
+                        )
+                        _uiState.update { it.copy(isResolvingStream = false, streamError = null) }
+                        val nextQueue = _uiState.value.queue + track
+                        playTracks(nextQueue, nextQueue.lastIndex)
+                        onSuccess()
+                    },
+                    onFailure = { err ->
+                        _uiState.update {
+                            it.copy(
+                                isResolvingStream = false,
+                                streamError = err.message ?: "Unable to extract YouTube stream"
+                            )
+                        }
+                    }
+                )
+            }
+            return
+        }
+
+        val track = MediaRepository.trackFromStreamUrl(extractedUrl)
+        if (track == null) {
+            _uiState.update { it.copy(streamError = "invalid") }
+            return
+        }
+        _uiState.update { it.copy(streamError = null, embeddedYouTubeId = null) }
         val nextQueue = _uiState.value.queue + track
         playTracks(nextQueue, nextQueue.lastIndex)
-        return true
+        onSuccess()
+    }
+
+    fun closeEmbeddedYouTube() {
+        _uiState.update { it.copy(embeddedYouTubeId = null) }
+    }
+
+    fun clearStreamError() {
+        if (_uiState.value.streamError != null) {
+            _uiState.update { it.copy(streamError = null) }
+        }
     }
 
     fun selectQueueIndex(index: Int) {
         val q = _uiState.value.queue
         if (index !in q.indices) return
-        _uiState.update { it.copy(currentIndex = index, positionMs = 0L) }
-        mediaController?.apply {
-            seekToDefaultPosition(index)
-            play()
+        requestPlayback(q[index]) { position ->
+            if (_uiState.value.queue != q) return@requestPlayback
+            _uiState.update { it.copy(currentIndex = index, positionMs = position) }
+            mediaController?.apply {
+                seekTo(index, position)
+                play()
+            }
         }
+    }
+
+    fun saveQueueAsPlaylist(name: String) {
+        val state = _uiState.value
+        val title = name.trim()
+        if (title.isEmpty() || state.queue.isEmpty()) return
+        val playlist = SavedPlaylist(UUID.randomUUID().toString(), title, state.queue.toList())
+        updatePlaylists(state.playlists + playlist)
+    }
+
+    fun deletePlaylist(id: String) {
+        updatePlaylists(_uiState.value.playlists.filterNot { it.id == id })
+    }
+
+    fun movePlaylistTrack(id: String, from: Int, to: Int) {
+        val playlists = _uiState.value.playlists
+        val playlist = playlists.find { it.id == id } ?: return
+        if (from == to || from !in playlist.tracks.indices || to !in playlist.tracks.indices) return
+        val reordered = playlist.tracks.toMutableList()
+        val track = reordered.removeAt(from)
+        reordered.add(to, track)
+        updatePlaylists(playlists.map { if (it.id == id) it.copy(tracks = reordered) else it })
+    }
+
+    private fun updatePlaylists(playlists: List<SavedPlaylist>) {
+        playlistStore.save(playlists)
+        _uiState.update { it.copy(playlists = playlists) }
     }
 
     fun clearQueue() {
@@ -337,6 +550,16 @@ class SapiraViewModel(application: Application) : AndroidViewModel(application) 
         val modes = VideoAspectMode.entries
         val next = modes[(_uiState.value.aspectMode.ordinal + 1) % modes.size]
         _uiState.update { it.copy(aspectMode = next) }
+    }
+
+    fun selectTrack(type: Int, group: Tracks.Group?, index: Int = 0, disable: Boolean = false) {
+        val controller = mediaController ?: return
+        if (group != null && group !in controller.currentTracks.groups) return
+        val builder = controller.trackSelectionParameters.buildUpon()
+            .clearOverridesOfType(type)
+            .setTrackTypeDisabled(type, disable)
+        if (group != null) builder.setOverrideForType(TrackSelectionOverride(group.mediaTrackGroup, index))
+        controller.trackSelectionParameters = builder.build()
     }
 
     fun toggleLyrics() {
@@ -442,19 +665,126 @@ class SapiraViewModel(application: Application) : AndroidViewModel(application) 
         _uiState.update { it.copy(language = lang) }
     }
 
+    fun dismissSubtitleFileError() {
+        _uiState.update { it.copy(invalidSubtitleFile = false) }
+    }
+
+    fun loadSubtitle(uri: Uri, trackId: String) {
+        subtitleJob?.cancel()
+        subtitleJob = viewModelScope.launch {
+            val context = getApplication<Application>()
+            val name = withContext(Dispatchers.IO) {
+                runCatching {
+                    context.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)
+                        ?.use { if (it.moveToFirst()) it.getString(0) else null }
+                }.getOrNull() ?: uri.lastPathSegment.orEmpty()
+            }
+            val track = _uiState.value.currentTrack?.takeIf { it.id == trackId && it.kind == MediaKind.VIDEO }
+                ?: return@launch
+            val mimeType = when (name.substringAfterLast('.').lowercase()) {
+                "srt" -> MimeTypes.APPLICATION_SUBRIP
+                "vtt" -> MimeTypes.TEXT_VTT
+                else -> {
+                    _uiState.update { it.copy(invalidSubtitleFile = true) }
+                    return@launch
+                }
+            }
+            val source = ExternalSubtitle(trackId, uri, name, mimeType)
+            if (applySubtitle(track, source, uri)) {
+                externalSubtitle = source
+                _uiState.update { it.copy(subtitleOffsetMs = 0L) }
+            }
+        }
+    }
+
+    fun changeSubtitleOffset(deltaMs: Long) {
+        val state = _uiState.value
+        val track = state.currentTrack ?: return
+        val source = externalSubtitle?.takeIf { it.trackId == track.id } ?: return
+        val currentOffset = state.subtitleOffsetMs ?: return
+        val offset = if (deltaMs == 0L) 0L else (currentOffset + deltaMs).coerceIn(-30_000L, 30_000L)
+        if (offset == currentOffset) return
+        subtitleJob?.cancel()
+        subtitleJob = viewModelScope.launch {
+            val uri = if (offset == 0L) source.uri else withContext(Dispatchers.IO) {
+                runCatching {
+                    val context = getApplication<Application>()
+                    val content = context.contentResolver.openInputStream(source.uri)?.bufferedReader()?.use { reader ->
+                        val buffer = CharArray(8192)
+                        val result = StringBuilder()
+                        while (true) {
+                            val count = reader.read(buffer)
+                            if (count == -1) break
+                            if (result.length + count > 2_000_000) return@use null
+                            result.append(buffer, 0, count)
+                        }
+                        result.toString()
+                    } ?: return@runCatching null
+                    val isSrt = source.mimeType == MimeTypes.APPLICATION_SUBRIP
+                    val shifted = SubtitleTiming.shift(content, offset, if (isSrt) ',' else '.')
+                    val key = UUID.nameUUIDFromBytes(shifted.toByteArray())
+                    val extension = if (isSrt) "srt" else "vtt"
+                    val file = File(context.cacheDir, "subtitle-$key.$extension")
+                    if (!file.exists()) file.writeText(shifted)
+                    Uri.fromFile(file)
+                }.getOrNull()
+            }
+            if (uri == null) {
+                _uiState.update { it.copy(invalidSubtitleFile = true) }
+                return@launch
+            }
+            if (externalSubtitle == source && applySubtitle(track, source, uri)) {
+                _uiState.update { it.copy(subtitleOffsetMs = offset) }
+            }
+        }
+    }
+
+    private fun applySubtitle(track: SapiraTrack, source: ExternalSubtitle, uri: Uri): Boolean {
+        val player = mediaController ?: return false
+        if (player.currentMediaItem?.mediaId != track.id) return false
+        val index = player.currentMediaItemIndex
+        val position = player.currentPosition
+        val subtitle = MediaItem.SubtitleConfiguration.Builder(uri)
+            .setMimeType(source.mimeType)
+            .setLabel(source.name)
+            .setSelectionFlags(C.SELECTION_FLAG_DEFAULT)
+            .build()
+        val item = track.toMediaItem().buildUpon()
+            .setSubtitleConfigurations(listOf(subtitle))
+            .build()
+        selectTrack(C.TRACK_TYPE_TEXT, null)
+        player.replaceMediaItem(index, item)
+        player.seekTo(index, position)
+        return true
+    }
+
+    @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
     private fun SapiraTrack.toMediaItem(): MediaItem {
         val metaBuilder = MediaMetadata.Builder()
             .setTitle(title)
             .setArtist(artist.ifBlank { null })
             .setAlbumTitle(album.ifBlank { null })
-        if (artworkUri != null && kind == MediaKind.AUDIO) {
+        if (artworkUri != null && (kind == MediaKind.AUDIO || isRemote)) {
             metaBuilder.setArtworkUri(artworkUri)
         }
-        return MediaItem.Builder()
+        val builder = MediaItem.Builder()
             .setMediaId(id)
             .setUri(uri)
             .setMediaMetadata(metaBuilder.build())
-            .build()
+        if (!mimeType.isNullOrBlank()) {
+            builder.setMimeType(mimeType)
+        }
+        if (!secondaryAudioUrl.isNullOrBlank()) {
+            val extras = Bundle().apply {
+                putString(SapiraMediaSourceFactory.EXTRA_AUDIO_URL, secondaryAudioUrl)
+            }
+            builder.setRequestMetadata(
+                MediaItem.RequestMetadata.Builder()
+                    .setExtras(extras)
+                    .build()
+            )
+        }
+        return builder.build()
     }
 
     override fun onCleared() {

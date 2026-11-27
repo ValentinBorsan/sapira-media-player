@@ -3,6 +3,7 @@ package org.sapira.mediaplayer.data
 import android.content.ContentUris
 import android.content.Context
 import android.net.Uri
+import android.os.Build
 import android.provider.MediaStore
 import android.provider.OpenableColumns
 import kotlinx.coroutines.Dispatchers
@@ -37,7 +38,8 @@ object MediaRepository {
             MediaStore.Audio.Media.DURATION,
             MediaStore.Audio.Media.SIZE,
             MediaStore.Audio.Media.DISPLAY_NAME
-        )
+        ) + if (Build.VERSION.SDK_INT >= 29) arrayOf(MediaStore.MediaColumns.RELATIVE_PATH)
+        else arrayOf(MediaStore.MediaColumns.DATA)
         val audioSelection = "${MediaStore.Audio.Media.IS_MUSIC} != 0 AND ${MediaStore.Audio.Media.DURATION} > 1000"
 
         runCatching {
@@ -56,6 +58,9 @@ object MediaRepository {
                 val durCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION)
                 val sizeCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.SIZE)
                 val nameCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DISPLAY_NAME)
+                val folderCol = cursor.getColumnIndex(
+                    if (Build.VERSION.SDK_INT >= 29) MediaStore.MediaColumns.RELATIVE_PATH else MediaStore.MediaColumns.DATA
+                )
 
                 while (cursor.moveToNext()) {
                     val id = cursor.getLong(idCol)
@@ -85,6 +90,9 @@ object MediaRepository {
                             sizeBytes = cursor.getLong(sizeCol),
                             ext = extractExtension(displayName).ifEmpty { "AUDIO" },
                             kind = MediaKind.AUDIO,
+                            folder = if (folderCol < 0) "" else cursor.getString(folderCol).orEmpty().let {
+                                if (Build.VERSION.SDK_INT >= 29) it.trimEnd('/') else it.substringBeforeLast('/', "")
+                            },
                             artworkUri = artworkUri
                         )
                     )
@@ -99,7 +107,8 @@ object MediaRepository {
             MediaStore.Video.Media.DURATION,
             MediaStore.Video.Media.SIZE,
             MediaStore.Video.Media.DISPLAY_NAME
-        )
+        ) + if (Build.VERSION.SDK_INT >= 29) arrayOf(MediaStore.MediaColumns.RELATIVE_PATH)
+        else arrayOf(MediaStore.MediaColumns.DATA)
 
         runCatching {
             resolver.query(
@@ -114,6 +123,9 @@ object MediaRepository {
                 val durCol = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DURATION)
                 val sizeCol = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.SIZE)
                 val nameCol = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DISPLAY_NAME)
+                val folderCol = cursor.getColumnIndex(
+                    if (Build.VERSION.SDK_INT >= 29) MediaStore.MediaColumns.RELATIVE_PATH else MediaStore.MediaColumns.DATA
+                )
 
                 while (cursor.moveToNext()) {
                     val id = cursor.getLong(idCol)
@@ -133,6 +145,9 @@ object MediaRepository {
                             sizeBytes = cursor.getLong(sizeCol),
                             ext = extractExtension(displayName).ifEmpty { "VIDEO" },
                             kind = MediaKind.VIDEO,
+                            folder = if (folderCol < 0) "" else cursor.getString(folderCol).orEmpty().let {
+                                if (Build.VERSION.SDK_INT >= 29) it.trimEnd('/') else it.substringBeforeLast('/', "")
+                            },
                             artworkUri = contentUri
                         )
                     )
@@ -176,16 +191,13 @@ object MediaRepository {
 
     fun trackFromStreamUrl(rawUrl: String): SapiraTrack? {
         val trimmed = rawUrl.trim()
-        if (!trimmed.startsWith("https://", ignoreCase = true) &&
-            !trimmed.startsWith("http://", ignoreCase = true)
-        ) {
-            return null
-        }
-        val uri = runCatching { Uri.parse(trimmed) }.getOrNull() ?: return null
+        val parsed = runCatching { java.net.URI(trimmed) }.getOrNull() ?: return null
+        if (!parsed.scheme.equals("https", ignoreCase = true)) return null
+        val host = parsed.host ?: return null
+        val uri = Uri.parse(trimmed).normalizeScheme()
         val pathPart = uri.lastPathSegment.orEmpty()
         val ext = extractExtension(pathPart)
         val isVideo = ext == "M3U8" || ext in VIDEO_EXTS
-        val host = uri.host ?: "Live Stream"
         val cleanName = stripExtension(pathPart).ifEmpty { host }
 
         return SapiraTrack(

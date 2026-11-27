@@ -17,6 +17,12 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        // NewPipeExtractor (used only by the sideloaded "full" flavor)
+        maven("https://jitpack.io") {
+            content {
+                includeGroupByRegex("com\\.github.*")
+            }
+        }
     }
 }
 

@@ -27,18 +27,27 @@ keyPassword=PAROLA_TA_KEY
 
 ---
 
-## 2. Generarea pachetului `.aab` pentru Google Play Console
+## 2. Cele două ediții Android (`play` vs `full`)
+
+Proiectul are două *product flavors* separate pentru a respecta 100% politicile Google Play, oferind în același timp suport complet nativ YouTube în varianta APK directă:
+
+- **`play` (`org.sapira.mediaplayer`)** — *Ediția Google Play Store*:
+  - Redă linkurile YouTube prin playerul oficial încorporat YouTube IFrame (fără extracție terță, conform termenilor Google Play).
+- **`full` (`org.sapira.mediaplayer.full` — „Sapira Full”)** — *Ediția GitHub / Cloudflare R2 (APK direct)*:
+  - Extrage nativ fluxurile YouTube prin **NewPipeExtractor** și le redă direct în **Media3 ExoPlayer** (până la **1080p H.264 + AAC** combinat prin `MergingMediaSource`, mod **Doar Audio** cu ecranul oprit, Lock Screen, Equalizer și **Share → Sapira** direct din aplicația YouTube).
+  - Datorită sufixului `.full`, poți avea ambele ediții instalate simultan pe telefon.
 
 Din folderul `android/`:
 
 ```bash
 export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"
-./gradlew bundleRelease assembleRelease
+./gradlew assemblePlayDebug assembleFullDebug bundlePlayRelease assembleFullRelease
 ```
 
-Fișierul gata de încărcat în **Google Play Console → Testing / Production → Create new release** se află în:
-- `android/app/build/outputs/bundle/release/app-release.aab`
-- APK pentru test direct pe telefon: `android/app/build/outputs/apk/debug/app-debug.apk`
+Artefactele generate se află mai jos (fără un upload keystore configurat în `keystore.properties`, pachetele `release` sunt nesemnate; verifică semnătura cu `jarsigner -verify app/build/outputs/bundle/playRelease/app-play-release.aab` înainte de încărcarea în Google Play Console):
+- **Google Play Console (`.aab`)**: `android/app/build/outputs/bundle/playRelease/app-play-release.aab`
+- **APK cu YouTube nativ (`full`, gata de instalat pe telefon)**: `android/app/build/outputs/apk/full/debug/app-full-debug.apk` (sau `full/release/app-full-release.apk` cu keystore configurat)
+- **APK ediția Google Play (`play`)**: `android/app/build/outputs/apk/play/debug/app-play-debug.apk`
 
 ---
 

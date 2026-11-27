@@ -81,6 +81,15 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
+            var subtitleTarget by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf<String?>(null) }
+            val subtitlePicker = rememberLauncherForActivityResult(
+                contract = ActivityResultContracts.OpenDocument()
+            ) { uri ->
+                val target = subtitleTarget
+                subtitleTarget = null
+                if (uri != null && target != null) viewModel.loadSubtitle(uri, target)
+            }
+
             LaunchedEffect(hasMediaPermission) {
                 if (hasMediaPermission) {
                     viewModel.scanDeviceLibrary()
@@ -107,6 +116,10 @@ class MainActivity : ComponentActivity() {
                     },
                     onPickLrcFile = {
                         lrcFilePicker.launch(arrayOf("*/*"))
+                    },
+                    onPickSubtitleFile = { trackId ->
+                        subtitleTarget = trackId
+                        subtitlePicker.launch(arrayOf("*/*"))
                     },
                     onEnterPip = { enterVideoPip() }
                 )
@@ -147,9 +160,22 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun handleIncomingViewIntent(intent: Intent?) {
-        if (intent?.action == Intent.ACTION_VIEW) {
-            val data = intent.data ?: return
-            viewModel.appendPickedUris(listOf(data), playImmediately = true)
+        when (intent?.action) {
+            Intent.ACTION_VIEW -> {
+                val data = intent.data ?: return
+                val scheme = data.scheme?.lowercase()
+                if (scheme == "http" || scheme == "https") {
+                    viewModel.openNetworkStream(data.toString())
+                } else {
+                    viewModel.appendPickedUris(listOf(data), playImmediately = true)
+                }
+            }
+            Intent.ACTION_SEND -> {
+                val sharedText = intent.getStringExtra(Intent.EXTRA_TEXT)?.trim()
+                if (!sharedText.isNullOrEmpty()) {
+                    viewModel.openNetworkStream(sharedText)
+                }
+            }
         }
     }
 

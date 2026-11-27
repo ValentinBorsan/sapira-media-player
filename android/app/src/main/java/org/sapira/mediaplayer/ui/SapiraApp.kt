@@ -1,5 +1,9 @@
 package org.sapira.mediaplayer.ui
 
+import android.app.Activity
+import android.content.Context
+import android.media.AudioManager
+import androidx.activity.compose.BackHandler
 import androidx.annotation.OptIn
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
@@ -7,6 +11,9 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -43,9 +50,15 @@ import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.material.icons.rounded.Language
 import androidx.compose.material.icons.rounded.LibraryMusic
 import androidx.compose.material.icons.rounded.Lyrics
+import androidx.compose.material.icons.rounded.Lock
+import androidx.compose.material.icons.rounded.LockOpen
+import androidx.compose.material.icons.rounded.DragHandle
 import androidx.compose.material.icons.rounded.Movie
 import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.rounded.Pause
+import androidx.compose.material.icons.rounded.Fullscreen
+import androidx.compose.material.icons.rounded.FullscreenExit
+import androidx.compose.material.icons.rounded.Subtitles
 import androidx.compose.material.icons.rounded.PictureInPictureAlt
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Public
@@ -61,6 +74,7 @@ import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
@@ -76,10 +90,12 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -89,21 +105,30 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.media3.common.C
+import androidx.media3.common.Tracks
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import coil.compose.AsyncImage
+import org.sapira.mediaplayer.data.SavedPlaylist
 import org.sapira.mediaplayer.model.EqPreset
 import org.sapira.mediaplayer.model.MediaKind
 import org.sapira.mediaplayer.model.SapiraI18n
+import org.sapira.mediaplayer.model.SapiraStrings
 import org.sapira.mediaplayer.model.SapiraLanguage
 import org.sapira.mediaplayer.model.SapiraTheme
 import org.sapira.mediaplayer.model.SapiraTrack
@@ -111,6 +136,9 @@ import org.sapira.mediaplayer.model.SleepTimerOption
 import org.sapira.mediaplayer.model.VideoAspectMode
 import org.sapira.mediaplayer.ui.components.PrismAudioCore
 import org.sapira.mediaplayer.ui.components.SapiraEmblemCanvas
+import org.sapira.mediaplayer.ui.components.YouTubeEmbedStage
+import org.sapira.mediaplayer.youtube.YouTubeLinks
+import org.sapira.mediaplayer.youtube.YouTubeSupport
 import kotlin.math.abs
 
 private enum class NavSection { STAGE, LIBRARY, QUEUE }
@@ -130,6 +158,7 @@ fun SapiraApp(
     onRequestMediaPermission: () -> Unit,
     onPickMediaFiles: () -> Unit,
     onPickLrcFile: () -> Unit,
+    onPickSubtitleFile: (String) -> Unit,
     onEnterPip: () -> Unit
 ) {
     val state by viewModel.uiState.collectAsState()
@@ -142,6 +171,88 @@ fun SapiraApp(
     var streamModalOpen by remember { mutableStateOf(false) }
     var streamUrlInput by remember { mutableStateOf("") }
 
+    var fullscreen by remember { mutableStateOf(false) }
+    val hasVideo = currentTrack?.kind == MediaKind.VIDEO
+    val fullscreenActive = fullscreen && hasVideo && !inPipMode
+    val view = LocalView.current
+    var trackPickerOpen by remember(currentTrack?.id) { mutableStateOf(false) }
+
+    if (!inPipMode && currentTrack?.kind == MediaKind.VIDEO) {
+        if (trackPickerOpen) {
+            VideoTrackPicker(
+                state = state,
+                strings = t,
+                onSelect = viewModel::selectTrack,
+                onAdjustSubtitleOffset = viewModel::changeSubtitleOffset,
+                onPickFile = {
+                    trackPickerOpen = false
+                    onPickSubtitleFile(currentTrack.id)
+                },
+                onDismiss = { trackPickerOpen = false }
+            )
+        }
+        if (state.invalidSubtitleFile) {
+            AlertDialog(
+                onDismissRequest = viewModel::dismissSubtitleFileError,
+                text = { Text(t.unsupportedSubtitleFile) },
+                confirmButton = {
+                    TextButton(onClick = viewModel::dismissSubtitleFileError) { Text("OK") }
+                }
+            )
+        }
+    }
+
+
+    if (!inPipMode) {
+        state.resumePrompt?.let { prompt ->
+            AlertDialog(
+                onDismissRequest = { viewModel.resolveResumePrompt(null) },
+                title = { Text(t.resumePlayback) },
+                text = { Text("${prompt.title} · ${formatDurationMs(prompt.positionMs)}") },
+                confirmButton = {
+                    TextButton(onClick = { viewModel.resolveResumePrompt(true) }) { Text(t.resumePlayback) }
+                },
+                dismissButton = {
+                    TextButton(onClick = { viewModel.resolveResumePrompt(false) }) { Text(t.startOver) }
+                }
+            )
+        }
+    }
+
+    LaunchedEffect(hasVideo) {
+        if (!hasVideo) fullscreen = false
+    }
+
+    if (fullscreenActive) {
+        BackHandler { fullscreen = false }
+        DisposableEffect(view) {
+            val window = (view.context as? Activity)?.window
+            val controller = window?.let { WindowCompat.getInsetsController(it, view) }
+            val previousBehavior = controller?.systemBarsBehavior
+            controller?.systemBarsBehavior =
+                WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            controller?.hide(WindowInsetsCompat.Type.systemBars())
+            onDispose {
+                controller?.show(WindowInsetsCompat.Type.systemBars())
+                if (previousBehavior != null) controller.systemBarsBehavior = previousBehavior
+            }
+        }
+        VideoStage(
+            player = viewModel.mediaController,
+            aspectMode = state.aspectMode,
+            fullscreen = true,
+            fullscreenLabel = t.exitFullscreen,
+            lockLabel = t.lockControls,
+            unlockLabel = t.unlockControls,
+            trackPickerLabel = t.trackPicker,
+            onOpenTrackPicker = { trackPickerOpen = true },
+            onToggleFullscreen = { fullscreen = false },
+            onCycleAspect = viewModel::cycleAspectMode,
+            onEnterPip = onEnterPip
+        )
+        return
+    }
+
     // Picture-in-Picture minimal video surface
     if (inPipMode && currentTrack?.kind == MediaKind.VIDEO) {
         Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
@@ -153,6 +264,7 @@ fun SapiraApp(
                         player = viewModel.mediaController
                     }
                 },
+                onRelease = { it.player = null },
                 update = { pv -> pv.player = viewModel.mediaController },
                 modifier = Modifier.fillMaxSize()
             )
@@ -251,8 +363,11 @@ fun SapiraApp(
                         onFetchOnlineLyrics = viewModel::fetchOnlineLyrics,
                         onPickLrcFile = onPickLrcFile,
                         onCloseLyrics = viewModel::toggleLyrics,
+                        onCloseEmbeddedYouTube = viewModel::closeEmbeddedYouTube,
                         onCycleAspect = viewModel::cycleAspectMode,
                         onEnterPip = onEnterPip,
+                        onEnterFullscreen = { fullscreen = true },
+                        onOpenTrackPicker = { trackPickerOpen = true },
                         mediaController = viewModel.mediaController
                     )
 
@@ -275,13 +390,20 @@ fun SapiraApp(
                             section = NavSection.STAGE
                         },
                         onClear = viewModel::clearQueue,
-                        onSelectSleep = viewModel::setSleepTimer
+                        onSelectSleep = viewModel::setSleepTimer,
+                        onSavePlaylist = viewModel::saveQueueAsPlaylist,
+                        onDeletePlaylist = viewModel::deletePlaylist,
+                        onMovePlaylistTrack = viewModel::movePlaylistTrack,
+                        onPlayPlaylist = { playlist, index ->
+                            viewModel.playTracks(playlist.tracks, index)
+                            section = NavSection.STAGE
+                        }
                     )
                 }
             }
 
-            // Floating Prism Player Dock (when a track is loaded)
-            if (currentTrack != null) {
+            // Floating Prism Player Dock (when a track is loaded and not showing embedded YouTube)
+            if (currentTrack != null && state.embeddedYouTubeId == null) {
                 PrismPlayerDock(
                     state = state,
                     onTogglePlay = viewModel::togglePlayPause,
@@ -332,39 +454,103 @@ fun SapiraApp(
         }
     }
 
-    // Stream URL Modal
+    // YouTube & Network Stream URL Modal
     if (streamModalOpen) {
+        var streamAudioOnly by remember { mutableStateOf(false) }
+        val isYtInput = remember(streamUrlInput) { YouTubeLinks.isYouTubeUrl(streamUrlInput) }
+        val errorMessage = when (state.streamError) {
+            null -> null
+            "invalid" -> t.invalidStreamUrl
+            else -> state.streamError
+        }
+
         AlertDialog(
-            onDismissRequest = { streamModalOpen = false },
+            onDismissRequest = {
+                if (!state.isResolvingStream) {
+                    viewModel.clearStreamError()
+                    streamModalOpen = false
+                }
+            },
             containerColor = Color(0xFF0B1020),
             titleContentColor = Color.White,
             textContentColor = MutedText,
             title = { Text(t.streamDialogTitle, fontWeight = FontWeight.SemiBold) },
             text = {
-                OutlinedTextField(
-                    value = streamUrlInput,
-                    onValueChange = { streamUrlInput = it },
-                    placeholder = { Text(t.streamUrlHint, color = MutedText) },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = streamUrlInput,
+                        onValueChange = {
+                            streamUrlInput = it
+                            viewModel.clearStreamError()
+                        },
+                        enabled = !state.isResolvingStream,
+                        isError = errorMessage != null,
+                        supportingText = {
+                            if (errorMessage != null) {
+                                Text(errorMessage)
+                            } else if (state.isResolvingStream) {
+                                Text(t.resolvingStream, color = theme.c0)
+                            }
+                        },
+                        placeholder = { Text(t.streamUrlHint, color = MutedText) },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    if (YouTubeSupport.NATIVE_PLAYBACK && (isYtInput || streamUrlInput.isBlank())) {
+                        FilterChip(
+                            selected = streamAudioOnly,
+                            onClick = { streamAudioOnly = !streamAudioOnly },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = if (streamAudioOnly) Icons.Rounded.MusicNote else Icons.Rounded.Movie,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            },
+                            label = { Text(t.streamAudioOnly, fontSize = 12.sp) },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = theme.c1.copy(alpha = 0.28f)
+                            )
+                        )
+                    }
+                }
             },
             confirmButton = {
                 Button(
+                    enabled = !state.isResolvingStream,
                     onClick = {
-                        if (viewModel.openNetworkStream(streamUrlInput)) {
-                            streamUrlInput = ""
-                            streamModalOpen = false
-                            section = NavSection.STAGE
-                        }
+                        viewModel.openNetworkStream(
+                            rawInput = streamUrlInput,
+                            audioOnly = streamAudioOnly,
+                            onSuccess = {
+                                streamUrlInput = ""
+                                streamModalOpen = false
+                                section = NavSection.STAGE
+                            }
+                        )
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = theme.c1)
                 ) {
+                    if (state.isResolvingStream) {
+                        CircularProgressIndicator(
+                            color = Color.White,
+                            strokeWidth = 2.dp,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(Modifier.width(8.dp))
+                    }
                     Text(t.playNow, color = Color.White)
                 }
             },
             dismissButton = {
-                TextButton(onClick = { streamModalOpen = false }) {
+                TextButton(
+                    enabled = !state.isResolvingStream,
+                    onClick = {
+                        viewModel.clearStreamError()
+                        streamModalOpen = false
+                    }
+                ) {
                     Text(t.cancel, color = MutedText)
                 }
             }
@@ -401,13 +587,26 @@ private fun StageScreen(
     onFetchOnlineLyrics: () -> Unit,
     onPickLrcFile: () -> Unit,
     onCloseLyrics: () -> Unit,
+    onCloseEmbeddedYouTube: () -> Unit,
     onCycleAspect: () -> Unit,
     onEnterPip: () -> Unit,
+    onEnterFullscreen: () -> Unit,
+    onOpenTrackPicker: () -> Unit,
     mediaController: Player?
 ) {
     val t = SapiraI18n.strings(state.language)
     val track = state.currentTrack
     val theme = state.theme
+
+    if (state.embeddedYouTubeId != null) {
+        YouTubeEmbedStage(
+            videoId = state.embeddedYouTubeId,
+            theme = theme,
+            note = t.youtubeEmbedNote,
+            onClose = onCloseEmbeddedYouTube
+        )
+        return
+    }
 
     if (track == null) {
         // Empty Sanctuary Stage
@@ -472,67 +671,17 @@ private fun StageScreen(
 
     // Video Cinema Stage
     if (track.kind == MediaKind.VIDEO) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 12.dp, vertical = 6.dp)
-                .clip(RoundedCornerShape(22.dp))
-                .background(Color.Black)
-                .border(1.dp, GlassBorder, RoundedCornerShape(22.dp))
-        ) {
-            AndroidView(
-                factory = { ctx ->
-                    PlayerView(ctx).apply {
-                        useController = false
-                        keepScreenOn = true
-                        player = mediaController
-                    }
-                },
-                update = { pv ->
-                    pv.player = mediaController
-                    pv.resizeMode = when (state.aspectMode) {
-                        VideoAspectMode.FIT -> AspectRatioFrameLayout.RESIZE_MODE_FIT
-                        VideoAspectMode.FILL -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM
-                        VideoAspectMode.STRETCH -> AspectRatioFrameLayout.RESIZE_MODE_FILL
-                    }
-                },
-                modifier = Modifier.fillMaxSize()
-            )
-
-            Row(
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(10.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Surface(
-                    onClick = onCycleAspect,
-                    shape = RoundedCornerShape(99.dp),
-                    color = Color(0xAA080C18)
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(Icons.Rounded.AspectRatio, contentDescription = null, tint = Color.White, modifier = Modifier.size(15.dp))
-                        Spacer(Modifier.width(5.dp))
-                        Text(state.aspectMode.label, color = Color.White, fontSize = 11.sp)
-                    }
-                }
-                Surface(
-                    onClick = onEnterPip,
-                    shape = CircleShape,
-                    color = Color(0xAA080C18)
-                ) {
-                    Icon(
-                        Icons.Rounded.PictureInPictureAlt,
-                        contentDescription = "PiP",
-                        tint = Color.White,
-                        modifier = Modifier.padding(7.dp).size(16.dp)
-                    )
-                }
-            }
-        }
+        VideoStage(
+            player = mediaController,
+            aspectMode = state.aspectMode,
+            fullscreen = false,
+            fullscreenLabel = t.enterFullscreen,
+            trackPickerLabel = t.trackPicker,
+            onOpenTrackPicker = onOpenTrackPicker,
+            onToggleFullscreen = onEnterFullscreen,
+            onCycleAspect = onCycleAspect,
+            onEnterPip = onEnterPip
+        )
         return
     }
 
@@ -625,6 +774,239 @@ private fun StageScreen(
                     .weight(1f)
                     .fillMaxWidth()
             )
+        }
+    }
+}
+
+
+@OptIn(UnstableApi::class)
+@Composable
+private fun VideoStage(
+    player: Player?,
+    aspectMode: VideoAspectMode,
+    fullscreen: Boolean,
+    fullscreenLabel: String,
+    trackPickerLabel: String,
+    lockLabel: String = "",
+    unlockLabel: String = "",
+    onOpenTrackPicker: () -> Unit,
+    onToggleFullscreen: () -> Unit,
+    onCycleAspect: () -> Unit,
+    onEnterPip: () -> Unit
+) {
+    val view = LocalView.current
+    val window = (view.context as? Activity)?.window
+    val audio = remember(view) { view.context.getSystemService(Context.AUDIO_SERVICE) as AudioManager }
+    var locked by remember { mutableStateOf(false) }
+    var playerView by remember { mutableStateOf<PlayerView?>(null) }
+    val currentPlayer by rememberUpdatedState(player)
+    val frame = Modifier.fillMaxSize()
+    if (fullscreen) {
+        DisposableEffect(window) {
+            val brightness = window?.attributes?.screenBrightness
+            onDispose {
+                if (window != null && brightness != null) {
+                    window.attributes = window.attributes.apply { screenBrightness = brightness }
+                }
+            }
+        }
+        BackHandler(locked) { locked = false }
+    }
+    val videoFrame = if (fullscreen) frame else frame
+        .padding(horizontal = 12.dp, vertical = 6.dp)
+        .clip(RoundedCornerShape(22.dp))
+        .border(1.dp, GlassBorder, RoundedCornerShape(22.dp))
+
+    Box(modifier = videoFrame.background(Color.Black)) {
+        AndroidView(
+            factory = { ctx ->
+                PlayerView(ctx).apply {
+                    useController = fullscreen
+                    keepScreenOn = true
+                    this.player = player
+                    playerView = this
+                }
+            },
+            onRelease = { it.player = null },
+            update = { pv ->
+                pv.player = player
+                pv.useController = fullscreen && !locked
+                pv.resizeMode = when (aspectMode) {
+                    VideoAspectMode.FIT -> AspectRatioFrameLayout.RESIZE_MODE_FIT
+                    VideoAspectMode.FILL -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+                    VideoAspectMode.STRETCH -> AspectRatioFrameLayout.RESIZE_MODE_FILL
+                }
+            },
+            modifier = Modifier.fillMaxSize()
+        )
+
+        if (fullscreen && !locked) {
+            Box(
+                Modifier.align(Alignment.Center)
+                    .fillMaxWidth()
+                    .fillMaxHeight(0.60f)
+                    .pointerInput(Unit) {
+                        detectTapGestures(
+                            onTap = {
+                                playerView?.let { if (it.isControllerFullyVisible) it.hideController() else it.showController() }
+                            },
+                            onDoubleTap = { tap ->
+                                currentPlayer?.let { media ->
+                                    if (media.isCurrentMediaItemSeekable) {
+                                        val delta = if (tap.x < size.width / 2) -10_000L else 10_000L
+                                        media.seekTo((media.currentPosition + delta).coerceIn(0L, media.duration.takeIf { it > 0 } ?: Long.MAX_VALUE))
+                                    }
+                                }
+                            }
+                        )
+                    }
+                    .pointerInput(window, audio) {
+                        var brightnessGesture = false
+                        var level = 0f
+                        val maxVolume = audio.getStreamMaxVolume(AudioManager.STREAM_MUSIC).coerceAtLeast(1)
+                        detectVerticalDragGestures(
+                            onDragStart = { point ->
+                                brightnessGesture = point.x < size.width / 2
+                                level = if (brightnessGesture) {
+                                    window?.attributes?.screenBrightness?.takeIf { it >= 0f } ?: 0.5f
+                                } else {
+                                    audio.getStreamVolume(AudioManager.STREAM_MUSIC).toFloat() / maxVolume
+                                }
+                            }
+                        ) { _, delta ->
+                            level = (level - delta / size.height.coerceAtLeast(1)).coerceIn(0f, 1f)
+                            if (brightnessGesture && window != null) {
+                                window.attributes = window.attributes.apply { screenBrightness = level.coerceAtLeast(0.05f) }
+                            } else if (!brightnessGesture) {
+                                val volume = kotlin.math.round(level * maxVolume).toInt()
+                                if (volume != audio.getStreamVolume(AudioManager.STREAM_MUSIC)) {
+                                    audio.setStreamVolume(AudioManager.STREAM_MUSIC, volume, 0)
+                                }
+                            }
+                        }
+                    }
+            )
+        }
+        Row(
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(10.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            if (fullscreen) {
+                IconButton(
+                    onClick = { locked = !locked },
+                    modifier = Modifier.background(Color(0xAA080C18), CircleShape)
+                ) {
+                    Icon(
+                        if (locked) Icons.Rounded.Lock else Icons.Rounded.LockOpen,
+                        contentDescription = if (locked) unlockLabel else lockLabel,
+                        tint = Color.White
+                    )
+                }
+            }
+            if (!locked) {
+                IconButton(
+                    onClick = onToggleFullscreen,
+                    modifier = Modifier.background(Color(0xAA080C18), CircleShape)
+                ) {
+                    Icon(
+                        if (fullscreen) Icons.Rounded.FullscreenExit else Icons.Rounded.Fullscreen,
+                        contentDescription = fullscreenLabel,
+                        tint = Color.White
+                    )
+                }
+                IconButton(
+                    onClick = onOpenTrackPicker,
+                    modifier = Modifier.background(Color(0xAA080C18), CircleShape)
+                ) {
+                    Icon(Icons.Rounded.Subtitles, contentDescription = trackPickerLabel, tint = Color.White)
+                }
+                Surface(
+                    onClick = onCycleAspect,
+                    shape = RoundedCornerShape(99.dp),
+                    color = Color(0xAA080C18)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Rounded.AspectRatio, contentDescription = null, tint = Color.White, modifier = Modifier.size(15.dp))
+                        Spacer(Modifier.width(5.dp))
+                        Text(aspectMode.label, color = Color.White, fontSize = 11.sp)
+                    }
+                }
+                Surface(
+                    onClick = onEnterPip,
+                    shape = CircleShape,
+                    color = Color(0xAA080C18)
+                ) {
+                    Icon(
+                        Icons.Rounded.PictureInPictureAlt,
+                        contentDescription = "PiP",
+                        tint = Color.White,
+                        modifier = Modifier.padding(7.dp).size(16.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@OptIn(UnstableApi::class)
+@kotlin.OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun VideoTrackPicker(
+    state: SapiraUiState,
+    strings: SapiraStrings,
+    onSelect: (Int, Tracks.Group?, Int, Boolean) -> Unit,
+    onAdjustSubtitleOffset: (Long) -> Unit,
+    onPickFile: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    val sections = listOf(C.TRACK_TYPE_AUDIO to strings.audioTracks, C.TRACK_TYPE_TEXT to strings.subtitleTracks)
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        LazyColumn(contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp)) {
+            sections.forEach { (type, title) ->
+                item {
+                    Text(title, fontWeight = FontWeight.SemiBold)
+                    TextButton(onClick = { onSelect(type, null, 0, false) }) {
+                        Text(strings.automaticTrack)
+                    }
+                    if (type == C.TRACK_TYPE_TEXT) {
+                        TextButton(onClick = { onSelect(type, null, 0, true) }) {
+                            Text(if (state.subtitlesEnabled) strings.subtitlesOff else "✓ " + strings.subtitlesOff)
+                        }
+                    }
+                }
+                state.tracks.groups.filter { it.type == type }.forEach { group ->
+                    items(group.length) { index ->
+                        if (group.isTrackSupported(index)) {
+                            val format = group.getTrackFormat(index)
+                            val label = format.label ?: format.language ?: "$title · ${index + 1}"
+                            val selected = group.isTrackSelected(index)
+                            TextButton(onClick = { onSelect(type, group, index, false) }) {
+                                Text(if (selected) "✓ $label" else label)
+                            }
+                        }
+                    }
+                }
+            }
+            item {
+                TextButton(onClick = onPickFile) { Text(strings.openSubtitleFile) }
+            }
+            state.subtitleOffsetMs?.let { offset ->
+                item {
+                    Text(strings.subtitleDelay, fontWeight = FontWeight.SemiBold)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        TextButton(onClick = { onAdjustSubtitleOffset(-250L) }) { Text("−250 ms") }
+                        TextButton(onClick = { onAdjustSubtitleOffset(0L) }) {
+                            Text(if (offset > 0) "+$offset ms" else "$offset ms")
+                        }
+                        TextButton(onClick = { onAdjustSubtitleOffset(250L) }) { Text("+250 ms") }
+                    }
+                }
+            }
         }
     }
 }
@@ -810,13 +1192,24 @@ private fun LibraryScreen(
     var query by remember { mutableStateOf("") }
     var kindFilter by remember { mutableStateOf<MediaKind?>(null) }
 
-    val filtered = remember(state.library, query, kindFilter) {
+    val orderLabels = listOf(t.libraryTitleSort, t.libraryArtistSort, t.libraryAlbumGroup, t.libraryFolderGroup)
+    var order by remember { mutableStateOf(0) }
+    val groupBy: ((SapiraTrack) -> String)? = when (order) {
+        2 -> { track -> track.album.ifBlank { t.unknownGroup } }
+        3 -> { track -> track.folder.ifBlank { t.unknownGroup } }
+        else -> null
+    }
+
+    val filtered = remember(state.library, query, kindFilter, order, t) {
         val q = query.trim().lowercase()
         state.library.filter { item ->
             (kindFilter == null || item.kind == kindFilter) &&
                 (q.isEmpty() || item.title.lowercase().contains(q) ||
-                    item.artist.lowercase().contains(q) || item.ext.lowercase().contains(q))
-        }
+                    item.artist.lowercase().contains(q) || item.album.lowercase().contains(q) ||
+                    item.folder.lowercase().contains(q) || item.ext.lowercase().contains(q))
+        }.sortedWith(compareBy<SapiraTrack> {
+            (groupBy?.invoke(it) ?: if (order == 1) it.artist else it.title).lowercase()
+        }.thenBy { it.title.lowercase() })
     }
 
     Column(
@@ -891,12 +1284,22 @@ private fun LibraryScreen(
 
         Spacer(Modifier.height(8.dp))
 
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            itemsIndexed(orderLabels) { index, label ->
+                FilterChip(selected = index == order, onClick = { order = index }, label = { Text(label) })
+            }
+        }
+
         LazyColumn(
             verticalArrangement = Arrangement.spacedBy(6.dp),
             contentPadding = PaddingValues(bottom = 16.dp),
             modifier = Modifier.fillMaxSize()
         ) {
             itemsIndexed(filtered, key = { _, tr -> tr.id }) { idx, item ->
+                val group = groupBy?.invoke(item)
+                if (group != null && (idx == 0 || groupBy.invoke(filtered[idx - 1]) != group)) {
+                    Text(group, color = theme.c0, modifier = Modifier.padding(vertical = 8.dp))
+                }
                 val isCurrent = state.currentTrack?.id == item.id
                 TrackRowItem(
                     track = item,
@@ -909,21 +1312,153 @@ private fun LibraryScreen(
     }
 }
 
+@kotlin.OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun PlaylistSheet(
+    playlists: List<SavedPlaylist>,
+    selectedId: String?,
+    strings: SapiraStrings,
+    theme: SapiraTheme,
+    onSelect: (String?) -> Unit,
+    onPlay: (SavedPlaylist, Int) -> Unit,
+    onDelete: (String) -> Unit,
+    onMove: (String, Int, Int) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val selected = playlists.find { it.id == selectedId }
+    val listState = rememberLazyListState()
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        if (selected == null) {
+            LazyColumn(contentPadding = PaddingValues(16.dp)) {
+                item { Text(strings.savedPlaylists, fontWeight = FontWeight.SemiBold) }
+                items(playlists, key = { it.id }) { playlist ->
+                    TextButton(onClick = { onSelect(playlist.id) }) {
+                        Text("${playlist.name} (${playlist.tracks.size})")
+                    }
+                }
+            }
+        } else {
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                TextButton(onClick = { onSelect(null) }) { Text(strings.savedPlaylists) }
+                TextButton(onClick = { onDelete(selected.id) }) { Text(strings.deletePlaylist) }
+            }
+            Text(selected.name, modifier = Modifier.padding(horizontal = 16.dp), fontWeight = FontWeight.SemiBold)
+            LazyColumn(
+                state = listState,
+                contentPadding = PaddingValues(16.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                itemsIndexed(selected.tracks) { index, track ->
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(Modifier.weight(1f)) {
+                            TrackRowItem(track, false, theme) { onPlay(selected, index) }
+                        }
+                        Icon(
+                            Icons.Rounded.DragHandle,
+                            contentDescription = strings.reorderTrack,
+                            tint = theme.c0,
+                            modifier = Modifier.size(48.dp).padding(10.dp)
+                                .pointerInput(selected.id, index) {
+                                    var dragOffset = 0f
+                                    var destination = index
+                                    detectDragGesturesAfterLongPress(
+                                        onDragStart = { dragOffset = 0f; destination = index },
+                                        onDragCancel = { dragOffset = 0f },
+                                        onDragEnd = {
+                                            dragOffset = 0f
+                                            onMove(selected.id, index, destination)
+                                        }
+                                    ) { change, amount ->
+                                        change.consume()
+                                        dragOffset += amount.y
+                                        val items = listState.layoutInfo.visibleItemsInfo
+                                        val source = items.firstOrNull { it.index == index }
+                                        if (source != null) {
+                                            val target = source.offset + source.size / 2f + dragOffset
+                                            destination = items.minByOrNull {
+                                                kotlin.math.abs(it.offset + it.size / 2f - target)
+                                            }?.index ?: index
+                                        }
+                                    }
+                                }
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
 @Composable
 private fun QueueScreen(
     state: SapiraUiState,
     onSelectIndex: (Int) -> Unit,
     onClear: () -> Unit,
-    onSelectSleep: (SleepTimerOption) -> Unit
+    onSelectSleep: (SleepTimerOption) -> Unit,
+    onSavePlaylist: (String) -> Unit,
+    onDeletePlaylist: (String) -> Unit,
+    onMovePlaylistTrack: (String, Int, Int) -> Unit,
+    onPlayPlaylist: (SavedPlaylist, Int) -> Unit
 ) {
     val t = SapiraI18n.strings(state.language)
     val theme = state.theme
+    var playlistsOpen by remember { mutableStateOf(false) }
+    var saveDialog by remember { mutableStateOf(false) }
+    var selectedPlaylistId by remember { mutableStateOf<String?>(null) }
+
+    if (saveDialog) {
+        var name by remember { mutableStateOf("") }
+        AlertDialog(
+            onDismissRequest = { saveDialog = false },
+            title = { Text(t.saveQueue) },
+            text = {
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text(t.playlistName) },
+                    singleLine = true
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    enabled = name.isNotBlank(),
+                    onClick = { onSavePlaylist(name); saveDialog = false }
+                ) { Text(t.savePlaylist) }
+            },
+            dismissButton = {
+                TextButton(onClick = { saveDialog = false }) { Text(t.cancel) }
+            }
+        )
+    }
+
+    if (playlistsOpen) {
+        PlaylistSheet(
+            playlists = state.playlists,
+            selectedId = selectedPlaylistId,
+            strings = t,
+            theme = theme,
+            onSelect = { selectedPlaylistId = it },
+            onPlay = onPlayPlaylist,
+            onDelete = { onDeletePlaylist(it); selectedPlaylistId = null },
+            onMove = onMovePlaylistTrack,
+            onDismiss = { playlistsOpen = false; selectedPlaylistId = null }
+        )
+    }
+
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(horizontal = 16.dp)
     ) {
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            TextButton(onClick = { playlistsOpen = true }) { Text(t.savedPlaylists) }
+            TextButton(enabled = state.queue.isNotEmpty(), onClick = { saveDialog = true }) { Text(t.saveQueue) }
+        }
         // Sleep Timer Strip
         Row(
             modifier = Modifier.fillMaxWidth(),
