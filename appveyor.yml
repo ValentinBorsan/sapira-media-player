@@ -1,0 +1,36 @@
+version: '1.0.{build}'
+image: Visual Studio 2022
+
+install:
+  - ps: Install-Product node 22 x64
+  - npm ci
+
+environment:
+  CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+
+build_script:
+  - ps: |
+      $identityOverrides = @{
+        'appx.identityName' = $env:MS_STORE_IDENTITY_NAME
+        'appx.publisher' = $env:MS_STORE_PUBLISHER
+        'appx.publisherDisplayName' = $env:MS_STORE_PUBLISHER_DISPLAY_NAME
+      }
+      $builderArgs = @('--publish', 'never')
+      foreach ($field in $identityOverrides.GetEnumerator()) {
+        if (-not [string]::IsNullOrWhiteSpace($field.Value)) {
+          $builderArgs += "-c.$($field.Key)=$($field.Value)"
+        }
+      }
+      if ($builderArgs.Count -ne 5) {
+        throw 'Set MS_STORE_IDENTITY_NAME, MS_STORE_PUBLISHER and MS_STORE_PUBLISHER_DISPLAY_NAME in AppVeyor Settings > Environment using Partner Center Product identity.'
+      }
+      npm.cmd run dist:msstore -- @builderArgs
+      if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      if (-not (Get-ChildItem -Path release -Filter '*.appx' -File)) {
+        throw 'The Microsoft Store build did not produce an AppX package.'
+      }
+
+test: off
+
+artifacts:
+  - path: 'release\*.appx'

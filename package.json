@@ -38,6 +38,7 @@
     "start": "npm run build && electron .",
     "dist:mac": "npm run build && electron-builder --mac --config electron-builder.json",
     "dist:win": "npm run build && electron-builder --win --config electron-builder.json",
+    "dist:msstore": "npm run build && electron-builder --win appx --x64 --config electron-builder.json",
     "dist:linux": "npm run build && electron-builder --linux --config electron-builder.json",
     "dist:all": "npm run build && electron-builder --mac --win --linux --config electron-builder.json"
   },

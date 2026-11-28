@@ -74,6 +74,17 @@
   "portable": {
     "artifactName": "Sapira-Media-Player-Portable-${version}-${arch}.${ext}"
   },
+  "appx": {
+    "applicationId": "SapiraMediaPlayer",
+    "identityName": "SapiraMediaPlayer",
+    "displayName": "Sapira Media Player",
+    "publisher": "CN=SapiraMediaPlayer",
+    "publisherDisplayName": "Valentin Borsan",
+    "backgroundColor": "#04050A",
+    "languages": ["en-US", "ro-RO"],
+    "showNameOnTiles": true,
+    "capabilities": ["internetClient", "runFullTrust"]
+  },
   "linux": {
     "icon": "build/icon.png",
     "category": "AudioVideo",
