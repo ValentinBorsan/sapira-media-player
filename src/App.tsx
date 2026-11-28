@@ -129,6 +129,8 @@ export function App() {
   // Universal FFmpeg + HLS + A-B Loop state
   const hlsRef = useRef<Hls | null>(null);
   const transcodeFallbackTriedRef = useRef(false);
+  const refreshedStreamTrackRef = useRef<string | null>(null);
+  const [streamRetry, setStreamRetry] = useState(0);
   const [probe, setProbe] = useState<MediaProbeResult | null>(null);
   const [isTranscoding, setIsTranscoding] = useState(false);
   const [transcodeOffset, setTranscodeOffset] = useState(0);
@@ -468,6 +470,9 @@ export function App() {
     setSelectedAudioTrack(0);
     setAbLoop({ a: null, b: null });
     transcodeFallbackTriedRef.current = false;
+    if (refreshedStreamTrackRef.current !== currentTrack?.id) {
+      refreshedStreamTrackRef.current = null;
+    }
     lastSavedTimeRef.current = 0;
     lastUiTimeUpdateRef.current = 0;
 
@@ -528,7 +533,8 @@ export function App() {
       const STREAM_TTL_MS = 45 * 60 * 1000;
       const needsFreshResolve =
         Boolean(platformSource) &&
-        (!currentTrack.resolvedAt ||
+        (refreshedStreamTrackRef.current === currentTrack.id ||
+          !currentTrack.resolvedAt ||
           Date.now() - currentTrack.resolvedAt > STREAM_TTL_MS ||
           currentTrack.url === platformSource);
 
@@ -783,7 +789,7 @@ export function App() {
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentTrack?.id]);
+  }, [currentTrack?.id, streamRetry]);
 
   // Persist position before window closes
   useEffect(() => {
@@ -2352,6 +2358,19 @@ export function App() {
                 }
               }
               if (activeTrackIdRef.current === errTrackId) {
+                const hasOriginalLink =
+                  currentTrack.sourceUrl || isExternalPlatformUrl(currentTrack.path);
+                if (
+                  window.sapira &&
+                  hasOriginalLink &&
+                  el &&
+                  el.currentTime < 1 &&
+                  refreshedStreamTrackRef.current !== errTrackId
+                ) {
+                  refreshedStreamTrackRef.current = errTrackId;
+                  setStreamRetry((attempt) => attempt + 1);
+                  return;
+                }
                 showOsd('Unable to play this online stream. Reopen the original link to try again.', true);
                 setIsPlaying(false);
               }
